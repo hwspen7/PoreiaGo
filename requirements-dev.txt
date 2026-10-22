@@ -1,3 +1,7 @@
+
 -r requirements.txt
+
+# Testing dependencies
 pytest>=8,<10
 pytest-asyncio>=0.23,<2
+numpy>=1.26,<3
