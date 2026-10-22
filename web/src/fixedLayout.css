@@ -1,0 +1,112 @@
+/* A viewport-sized application shell: only the conversation and history lists scroll. */
+html, body, #root {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#root > .app-shell {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#root > .app-shell > .sidebar {
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+#root > .app-shell > .sidebar .session-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+#root > .app-shell > .sidebar .side-bottom {
+  flex: 0 0 auto;
+}
+
+#root > .app-shell > .main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+#root > .app-shell .topbar {
+  flex: 0 0 auto;
+}
+
+#root > .app-shell .conversation {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#root > .app-shell .message-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+#root > .app-shell .composer-area {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  background: var(--bg);
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+#root > .app-shell .dashboard {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Match native scrollbars to the active palette rather than the OS default. */
+:root {
+  color-scheme: dark;
+  --scrollbar-thumb: #465364;
+  --scrollbar-hover: #617184;
+  --scrollbar-track: #141a23;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+  --scrollbar-thumb: #a7b6c3;
+  --scrollbar-hover: #8193a3;
+  --scrollbar-track: #f1f5f7;
+}
+
+:is(.message-list, .session-list, .dashboard, .skill-detail-list, .formatted-answer pre, .composer textarea) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+:is(.message-list, .session-list, .dashboard, .skill-detail-list, .formatted-answer pre, .composer textarea)::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+:is(.message-list, .session-list, .dashboard, .skill-detail-list, .formatted-answer pre, .composer textarea)::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 12px;
+}
+:is(.message-list, .session-list, .dashboard, .skill-detail-list, .formatted-answer pre, .composer textarea)::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 2px solid var(--scrollbar-track);
+  border-radius: 12px;
+}
+:is(.message-list, .session-list, .dashboard, .skill-detail-list, .formatted-answer pre, .composer textarea)::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-hover);
+}
