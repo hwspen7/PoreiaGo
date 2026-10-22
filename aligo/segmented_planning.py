@@ -253,7 +253,11 @@ local food, worthwhile museums, and diverse rainy-day alternatives.
 Keep unrelated flight, airport and accommodation logistics out of the narrative. A city
 trip deserves named city neighborhoods; regional journeys need travel days.
 A weather backup must replace a specific outdoor stop and remain practical.
-Where exact time is uncertain use Morning/Afternoon/Evening, not a made-up clock.
+For an editable daily itinerary with several activities, prefer a coherent
+provisional HH:MM start time and explicit dwell duration for each stop.
+These are SUGGESTED planning times, not claims of verified operating hours.
+If a start truly cannot be estimated, mark the uncertainty explicitly and use
+a daypart; do not disguise an invented opening hour as confirmed.
 If you select a named venue, provide its exact place_name in the activity.
 Prefer source-backed daily candidates where they fit the desired experience.
 A venue missing from partial search results is not necessarily fictional, but
@@ -402,7 +406,10 @@ coordination_issues and previous_rejected_day. Replace the repeated activity
 with a DIFFERENT named local experience, not a paraphrase. Keep other
 activities, chronological order, meal coverage and transfers usable. Use 3 or 4 geographically practical named experiences on full sightseeing days;
 for arrival, departure or long transfers, use only feasible activities.
-Provide clear Morning/Afternoon/Evening progression and a concrete local meal
+Prefer suggested precise start_time HH:MM and duration_minutes for editable
+multi-stop days, preserving travel gaps. If exact timing is unavailable,
+state the uncertainty without claiming a verified reservation.
+Provide a clear chronological progression and a concrete local meal
 when food is requested. Be specific, safe, and realistic, never invent opening
 hours, verified prices, accessibility or bookings. For rain, name a practical
 indoor substitute for an outdoor experience. Favor concise, informative text.

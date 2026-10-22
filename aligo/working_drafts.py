@@ -6,20 +6,40 @@ from .validation_gate import validate_for_commit, ItineraryGateError, unresolved
 def review_draft(document, *, previous=None, intent=None):
     candidate = validate_itinerary(document, operation='create')
     issues = []
-    # Display chronologically without pretending that a sort repairs timing
-    # conflicts. On subsequent edits, positions refer to this saved order.
+    # A model's verified label has no evidentiary authority. Revoke it before
+    # invoking the validation gate, rather than telling the traveler it is a
+    # problem and then silently resolving it afterward.
+    for day in candidate['days']:
+        for activity in day['activities']:
+            if activity.get('evidence_status') == 'verified':
+                activity['evidence_status'] = 'unverified'
+                if not activity.get('verification_needed'):
+                    activity['verification_needed'] = 'Verify this place or claim with an authoritative source.'
     from .time_contract import activity_start_minute
     for day in candidate['days']:
         activities = day['activities']
         starts = [activity_start_minute(item) for item in activities]
         if any(a is not None and b is not None and a > b
                for a, b in zip(starts, starts[1:])):
+            previous_order = {id(row): i for i, row in enumerate(activities)}
             activities.sort(key=lambda item: (
                 activity_start_minute(item) is None,
                 activity_start_minute(item) if activity_start_minute(item) is not None else 1440))
+            for index, activity in enumerate(activities):
+                old_index = previous_order[id(activity)]
+                old_predecessor = previous_order[id(activities[index - 1])] if index else None
+                if old_index > 0 and old_predecessor != old_index - 1:
+                    activity.pop('transport_hint', None)
+                    activity.pop('transfer_minutes', None)
+                    activity.pop('buffer_minutes', None)
+                    if not activity.get('verification_needed'):
+                        activity['verification_needed'] = 'Recheck inbound routing after chronological reorder.'
             issues.append({'code': 'DRAFT_ACTIVITY_ORDER_RECONCILED',
                            'day': day['day'],
-                           'detail': 'Activities were displayed in chronological order. Recheck dependent transfers and gaps.'})
+                           'detail': 'Activities were sorted chronologically. Review transfers and dependencies.'})
+        if len(activities) > 1 and not any(activity_start_minute(a) is not None for a in activities):
+            issues.append({'code': 'DRAFT_CLOCKS_UNSPECIFIED', 'day': day['day'],
+                           'detail': 'Start times are approximate dayparts; exact scheduling remains unresolved.'})
     try:
         validate_for_commit(candidate, previous=previous, intent=intent)
     except ItineraryGateError as exc:
@@ -34,13 +54,13 @@ def review_draft(document, *, previous=None, intent=None):
                     'activity_index': conflict['proposed_position'],
                     'detail': f"Repeated venue also at activity {conflict['existing_position']}: "
                               + conflict['matched_alias']})
-    # Drafts may preserve uncertain claims, but must never retain a false
-    # assertion that server-owned evidence has verified them.
-    for day in candidate['days']:
-        for activity in day['activities']:
-            if activity.get('evidence_status') == 'verified':
-                activity['evidence_status'] = 'unverified'
-    return candidate, issues
+    # Collapse duplicate diagnostic entries that emerged from independent
+    # checks and show actionable schedule problems before optional metadata.
+    unique = {}
+    for issue in issues:
+        signature = (issue.get('code'), issue.get('day'), issue.get('activity_index'), issue.get('detail'))
+        unique.setdefault(signature, issue)
+    return candidate, list(unique.values())
 
 
 def draft_preface(draft):

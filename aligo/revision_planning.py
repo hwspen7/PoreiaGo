@@ -355,6 +355,18 @@ async def _generate_activity_patch(models, result, baseline, query, *, day_numbe
     from .working_drafts import review_draft
     _, baseline_issues = review_draft(result)
     context['baseline_review_issues'] = baseline_issues
+    if observable_intent.get('early_topic'):
+        context['activity_edit_contract']['early_visit'] = (
+            'Place an ACTUAL activity of the requested category near the specified morning clock. '
+            'Do not claim a new park or museum exists in notes when it is absent from activities.')
+    if observable_intent.get('anchor_place'):
+        context['activity_edit_contract']['anchored_visit'] = (
+            'Make sure the requested named visit exists in activities and starts at the explicit '
+            'requested clock. Do not substitute a mention in a note for a real activity.')
+    if observable_intent.get('less_rushed'):
+        context['activity_edit_contract']['pace_relief'] = (
+            'Reduce a lower-priority stop or materially reduce total dwell time. '
+            'Retiming all the same stops by one hour is not sufficient. Preserve traveler-anchored starts.')
     context['instruction'] = (
         'Implement the requested change and repair existing conflicts if possible. '
         'Preserve constraints from the current Journey. Identify venue category for '
@@ -392,6 +404,18 @@ async def _generate_activity_patch(models, result, baseline, query, *, day_numbe
                     'Read the previous attempted schedule and fix the exact overlap. '
                     'You may move or replace lower-priority stops, or select a gap. '
                     'All proposed activities need a concrete clock and duration.')
+            if previous_rejection.get('error_code') == 'REVISION_ANCHORED_VISIT_NOT_MET':
+                request['required_repair'] = (
+                    'The user requested a particular place at an exact time. Include that venue '
+                    'as an actual activity at that time. Do not only mention it in notes.')
+            if previous_rejection.get('error_code') == 'REVISION_EARLY_TOPIC_NOT_MET':
+                request['required_repair'] = (
+                    'Add or move an ACTUAL activity with the requested category into the morning time window. '
+                    'The activity must appear in the activities array, not only in notes.')
+            if previous_rejection.get('error_code') == 'REVISION_PACE_NOT_IMPROVED':
+                request['required_repair'] = (
+                    'Reduce the number of lower-priority stops or materially reduce total dwell minutes. '
+                    'Only shifting clocks or shortening the day span slightly is not adequate.')
             if previous_rejection.get('error_code') == 'REVISION_REPLACEMENT_TARGET_NOT_MET':
                 request['required_repair'] = (
                     'Replace an existing stop of the specifically requested category, '

@@ -68,7 +68,10 @@ def _bounded_text_list(source: dict, key: str, max_items: int, limit: int) -> li
     values = source[key]
     if not isinstance(values, list) or len(values) > max_items:
         raise TripValidationError(f'{key} must be a short list.')
-    return [_clean_text(item, key, limit) for item in values]
+    cleaned = [_clean_text(item, key, limit) for item in values]
+    # Remove leaked schema tokens, not arbitrary traveler-authored prose.
+    placeholder = re.compile(r'(?i)^(?:key_tradeoffs|predeparture_checks|budget_strategy|planning_assumptions)(?:\s+[a-z]{2,25})?$')
+    return [item for item in cleaned if not placeholder.fullmatch(item)]
 
 
 def _day(value: Any, number: int) -> dict:
@@ -94,6 +97,11 @@ def _day(value: Any, number: int) -> dict:
             if isinstance(item.get('time'), str) and item['time'].strip():
                 activity['time'] = _clean_text(item['time'], 'Activity time', 70)
             _optional_text_fields(item, ACTIVITY_DETAILS, activity)
+            # A qualitative band is not a currency amount. Do not display it
+            # twice as both 'cost level' and 'estimated cost'.
+            if str(activity.get('cost_estimate') or '').strip().casefold() in {
+                    'free', 'low', 'moderate', 'high', 'unknown'}:
+                activity.pop('cost_estimate', None)
             for name, allowed in (
                 ('activity_type', ACTIVITY_CATEGORIES),
                 ('meal_type', MEAL_CATEGORIES),
@@ -273,7 +281,8 @@ def trip_delta(previous: dict | None, current: dict) -> dict:
 _INTERNAL_REASON = re.compile(
     r'\b(?:aligns? with|matches|fits)\s+(?:the\s+)?[\u2018\u2019\u201c\u201d\'\"]?'
     r'[^.!?]{0,100}\b(?:theme|blueprint|anchor)\b|'
-    r'\b(?:primary|core|major|second)\s+anchor\b', re.I)
+    r'\b(?:primary|core|major|second)\s+anchor\b|'
+    r'\b(?:adjusted\s+to\s+\d{1,2}:[0-5]\d|shifted\s+to\s+accommodate)\b', re.I)
 
 
 def _display_cost_estimate(value: str) -> str:

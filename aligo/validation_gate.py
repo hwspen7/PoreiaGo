@@ -203,36 +203,85 @@ def _intent_issues(document: dict, previous: dict | None, intent: dict | None) -
         if not old_matching or not (old_matching - current_matching):
             issues.append(GateIssue('REVISION_REPLACEMENT_TARGET_NOT_MET',
                                     detail=f'No existing {replacement_topic} visit was replaced.'))
+    anchor_name = intent.get('anchor_place')
+    anchor_minute = intent.get('anchor_minute')
+    if anchor_name and type(anchor_minute) is int:
+        name = ' '.join(str(anchor_name).casefold().split())
+        tolerance = int(intent.get('anchor_tolerance_minutes', 0))
+        def matches_anchor(activity):
+            display = ' '.join(str(activity.get(k) or '') for k in
+                               ('place_name', 'description')).casefold()
+            at = activity_start_minute(activity)
+            return name in display and at is not None and abs(at - anchor_minute) <= tolerance
+        if not any(matches_anchor(a) for d in document['days'] for a in d['activities']):
+            issues.append(GateIssue('REVISION_ANCHORED_VISIT_NOT_MET',
+                detail=f'Add or schedule the requested visit {anchor_name!r} at '
+                       f'{anchor_minute // 60:02d}:{anchor_minute % 60:02d}; '
+                       'the visit must appear in the activities list.'))
+    early_topic = intent.get('early_topic')
+    if early_topic:
+        minute = intent.get('early_target_minute')
+        tolerance = intent.get('early_tolerance_minutes', 60)
+        if type(minute) is int:
+            # Compare visits to the requested category, not arbitrary events
+            # moved to the morning or prose that merely claims an addition.
+            def qualifying(doc):
+                return {(a.get('place_name') or a.get('description') or '').strip().casefold()
+                        for d in doc['days'] for a in d['activities']
+                        if _topic_matches(a, early_topic)
+                        and (start := activity_start_minute(a)) is not None
+                        and max(0, minute - tolerance) <= start <= minute + tolerance}
+            if not qualifying(document) - qualifying(previous):
+                issues.append(GateIssue('REVISION_EARLY_TOPIC_NOT_MET',
+                    detail=f'Schedule an actual {early_topic} visit near '
+                           f'{minute // 60:02d}:{minute % 60:02d}; '
+                           'moving another type of activity or changing notes does not count.'))
     if intent.get('less_rushed'):
+        # A one-hour reduction of a 20-hour day, with all seven visits and
+        # their dwell times intact, is not meaningful pace relief. Require
+        # a substantive reduction in active work, not a textual pace label.
         def effort(doc):
-            durations = [a.get('duration_minutes', 0) for d in doc['days'] for a in d['activities']]
+            durations = [a.get('duration_minutes') for d in doc['days'] for a in d['activities']]
             return (sum(len(d['activities']) for d in doc['days']),
-                    sum(n for n in durations if type(n) is int))
+                    sum(n for n in durations if type(n) is int and n > 0))
         old_count, old_duration = effort(previous)
         new_count, new_duration = effort(document)
-        def span(doc):
-            starts, ends = [], []
-            for day in doc['days']:
-                for row in day['activities']:
-                    start = activity_start_minute(row)
-                    duration = row.get('duration_minutes')
-                    if start is not None and type(duration) is int:
-                        starts.append(start)
-                        ends.append(start + duration)
-            return max(ends) - min(starts) if starts and ends else None
-        old_span, new_span = span(previous), span(document)
-        shorter_day = (old_span is not None and new_span is not None and new_span < old_span)
-        if not (new_count < old_count or new_duration < old_duration or shorter_day):
+        recovered = old_duration - new_duration
+        meaningful = (
+            (new_count < old_count and recovered >= 30) or
+            recovered >= max(60, int(old_duration * 0.12))
+        )
+        if not meaningful:
             issues.append(GateIssue('REVISION_PACE_NOT_IMPROVED',
-                                    detail='Reduce stops or time spent, or explicitly lighten day pace.'))
+                detail=(f'Active stops before={old_count}, after={new_count}; '
+                        f'dwell minutes before={old_duration}, after={new_duration}. '
+                        'Reduce lower-priority stops or substantive dwell time; '
+                        'a slightly shorter clock span or a pace label alone is insufficient.')))
     return issues
 
 
-def explicit_revision_intent(request: str, *, target_days: list[int] | None = None) -> dict:
-    """Conservative observable constraints, with 12/24-hour clock support.
+def _clock_expression(text: str) -> tuple[int, int] | None:
+    """Parse a simple 12/24-hour clock with optional colon or minutes."""
+    match = re.search(r'(?<!\d)(\d{1,2})(?::([0-5]\d))?\s*(a\.?m\.?|p\.?m\.?)?\b', text, re.I)
+    if not match:
+        return None
+    hour, minute = int(match.group(1)), int(match.group(2) or 0)
+    suffix = str(match.group(3) or '').lower().replace('.', '')
+    if suffix:
+        if not 1 <= hour <= 12:
+            return None
+        hour = hour % 12 + (12 if suffix == 'pm' else 0)
+    elif hour > 23:
+        return None
+    return hour * 60 + minute, match.start()
 
-    Unrecognized natural-language intent remains model-directed rather than
-    being falsely certified by superficial word or time changes.
+
+def explicit_revision_intent(request: str, *, target_days: list[int] | None = None) -> dict:
+    """Extract directly observable requirements without certifying semantics.
+
+    The LLM remains responsible for intent beyond this conservative grammar.
+    Recognizable requests for early visits must not silently become untested
+    free-form changes, even when they do not use the verb 'add'.
     """
     if not isinstance(request, str):
         return {}
@@ -250,23 +299,48 @@ def explicit_revision_intent(request: str, *, target_days: list[int] | None = No
                 term = term[:-1]
             if term not in {'time', 'day', 'hour', 'activity', 'activitie', 'thing', 'option'}:
                 result['requested_term'] = term
-        clock = re.search(r'\bafter\s+(\d{1,2})(?::([0-5]\d))?\s*(am|pm)?\b', text, re.I)
-        if clock:
-            hour = int(clock.group(1))
-            marker = str(clock.group(3) or '').casefold()
-            if marker and 1 <= hour <= 12:
-                hour = hour % 12 + (12 if marker == 'pm' else 0)
-            elif marker or hour > 23:
-                hour = -1
-            if hour >= 0:
-                result['not_before_minute'] = hour * 60 + int(clock.group(2) or 0)
+        after = re.search(r'\bafter\s+(\d{1,2}(?::[0-5]\d)?\s*(?:a\.?m\.?|p\.?m\.?)?)', text, re.I)
+        if after:
+            parsed = _clock_expression(after.group(1))
+            if parsed:
+                result['not_before_minute'] = parsed[0]
+    # A morning visit can be achieved by moving an existing qualifying stop
+    # or adding one if absent. The category is checked against real activities.
+    early = re.search(r'\b(?:earlier|early|morning|before\s+\d{1,2}|around\s+\d{1,2})\b', text, re.I)
+    topic = re.search(r'\b(?:visit|see|tour|explore|include|add|experience)\s+'
+                      r'(?:some|a|the|more|additional|few|several|of\s+the)*\s*'
+                      r'(parks?|gardens?|museums?|galleries?)\b', text, re.I)
+    if early and topic:
+        word = topic.group(1).casefold().rstrip('s')
+        result['requires_activity_change'] = True
+        result['early_topic'] = 'garden' if word == 'garden' else word
+        exact_clock = re.search(r'\b(?:around|at|like|near|about|by)\s+'
+                                r'(\d{1,2}(?::[0-5]\d)?\s*(?:a\.?m\.?|p\.?m\.?)?)', text, re.I)
+        parsed = _clock_expression(exact_clock.group(1)) if exact_clock else None
+        if parsed:
+            result['early_target_minute'] = parsed[0]
+            result['early_tolerance_minutes'] = 60 if re.search(r'\b(?:around|like|near|about)\b', text, re.I) else 30
+        elif re.search(r'\bmorning\b', text, re.I):
+            result['early_target_minute'] = 8 * 60
+            result['early_tolerance_minutes'] = 180
+    anchor = re.search(r'\b(?:go to|visit|see|stop at|arrive at)\s+'
+                       r'(?:the\s+)?([A-Za-z][A-Za-z\s\'-]{2,80}?)\s+'
+                       r'(at|around|about)\s+'
+                       r'(\d{1,2}(?::[0-5]\d)?\s*(?:a\.?m\.?|p\.?m\.?)?)\b', text, re.I)
+    if anchor:
+        parsed = _clock_expression(anchor.group(3))
+        if parsed:
+            result['requires_activity_change'] = True
+            result['anchor_place'] = anchor.group(1).strip()
+            result['anchor_minute'] = parsed[0]
+            result['anchor_tolerance_minutes'] = 30 if anchor.group(2).lower() != 'at' else 0
     replacing = re.search(r'\breplace\s+(?:one|a|the|some)?\s*([a-z][a-z-]{2,30})\s+with\b', text, re.I)
     if replacing:
         result['requires_activity_change'] = True
         term = replacing.group(1).casefold().rstrip('s')
         if term not in {'activity', 'stop', 'visit', 'thing'}:
             result['replace_topic'] = term
-    if re.search(r'\b(?:less rushed|less packed|reduce activities)\b', text, re.I):
+    if re.search(r'\b(?:less rushed|less packed|less hectic|more relaxed|reduce activities)\b', text, re.I):
         result['requires_activity_change'] = True
         result['less_rushed'] = True
     if re.search(r'\b(?:again|revisit|repeat visit|visit twice)\b', text, re.I):

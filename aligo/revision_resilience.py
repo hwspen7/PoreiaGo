@@ -23,10 +23,13 @@ def _clock(minutes: int) -> str:
 
 def reconcile_schedule(day: dict, origins: list[int | None], *,
                        not_before_minute: int | None = None) -> tuple[dict, list[int | None]]:
-    """Chronologically order a day and relocate *new* overlapping stops only.
+    """Sort chronologically and repair a movable addition using existing timing facts.
 
-    Existing visits retain their explicit times. A different named area needs
-    a small scheduling margin, which is not represented as a verified ETA.
+    Do not silently shift previously accepted stops. Only an inserted/replaced
+    activity (origin=None) is movable, and no more than three hours from its
+    proposal. Explicit inbound transfer/buffer requirements are preserved.
+    A 15-minute planning margin for distinct named areas is a provisional
+    minimum, not a claim about actual travel time.
     """
     result = deepcopy(day)
     activities = result.get('activities', [])
@@ -35,47 +38,62 @@ def reconcile_schedule(day: dict, origins: list[int | None], *,
     indexed = [(deepcopy(a), origin) for a, origin in zip(activities, origins)]
     if sum(_interval(a) is not None for a, _ in indexed) < 2:
         return result, origins
-    fixed = [(a, _interval(a)) for a, origin in indexed if origin is not None and _interval(a)]
-    for activity, origin in indexed:
-        if origin is not None:
-            continue
+
+    def needed(previous: dict, following: dict) -> int:
+        transfer = following.get('transfer_minutes')
+        buffer = following.get('buffer_minutes')
+        explicit = (transfer if type(transfer) is int and transfer >= 0 else 0) + (buffer if type(buffer) is int and buffer >= 0 else 0)
+        prior_area = str(previous.get('area') or '').casefold().strip()
+        next_area = str(following.get('area') or '').casefold().strip()
+        prior_venue = str(previous.get('place_name') or previous.get('description') or '').strip().casefold()
+        next_venue = str(following.get('place_name') or following.get('description') or '').strip().casefold()
+        distinct = bool(prior_venue and next_venue and prior_venue != next_venue)
+        margin = 15 if distinct or (prior_area and next_area and prior_area != next_area) else 0
+        return max(explicit, margin)
+
+    fixed = [a for a, origin in indexed if origin is not None and _interval(a)]
+    movable = [(a, origin) for a, origin in indexed if origin is None and _interval(a)]
+    for activity, origin in movable:
         current = _interval(activity)
         if current is None:
             continue
         duration = current[1] - current[0]
-        occupied = sorted((interval[0], interval[1], a) for a, interval in fixed if interval)
-        # Place a proposed visit no earlier than its requested clock time.
         earliest = current[0]
-        if isinstance(not_before_minute, int):
+        if type(not_before_minute) is int:
             earliest = max(earliest, not_before_minute + 1)
-        def fits(start: int) -> bool:
+        occupied = sorted(fixed, key=lambda a: _interval(a)[0])
+
+        def feasible(start: int) -> bool:
             if start + duration > 1440:
                 return False
-            for before, after, _ in occupied:
-                if start < after and start + duration > before:
+            trial = sorted(occupied + [{**activity, 'start_time': _clock(start), 'time': None}],
+                           key=lambda a: _interval(a)[0])
+            for left, right in zip(trial, trial[1:]):
+                if _interval(left)[1] + needed(left, right) > _interval(right)[0]:
                     return False
             return True
-        if not fits(earliest):
-            boundaries = {earliest}
-            boundaries.update(end for _, end, _ in occupied if end >= earliest)
-            for candidate in sorted(boundaries):
-                # Do not treat a zero-minute transfer as a verified connection.
-                candidate = max(candidate, earliest)
-                if candidate > earliest:
-                    candidate += 15
-                # Large displacements are itinerary design decisions for the model.
+
+        if not feasible(earliest):
+            # Try just after previously booked stops with their own documented
+            # transfer requirements. Do not use a fake opening-hours provider.
+            candidates = {earliest}
+            for stop in occupied:
+                stop_interval = _interval(stop)
+                if stop_interval:
+                    candidates.add(max(earliest, stop_interval[1] + needed(stop, activity)))
+            for candidate in sorted(candidates):
                 if candidate - current[0] > 180:
-                    continue
-                if fits(candidate):
+                    break
+                if feasible(candidate):
                     activity['start_time'] = _clock(candidate)
                     activity.pop('time', None)
                     activity.pop('transport_hint', None)
-                    activity.pop('transfer_minutes', None)
-                    note = 'Confirm the transfer time and opening hours for this adjusted stop.'
-                    if not activity.get('verification_needed'):
-                        activity['verification_needed'] = note
+                    # A moved stop's previous route is stale; keep an explicitly
+                    # supplied duration as a required minimum, not a verified ETA.
+                    reminder = 'Recheck transfer and opening hours for the adjusted stop.'
+                    activity['verification_needed'] = reminder
                     break
-        fixed.append((activity, _interval(activity)))
+        fixed.append(activity)
     indexed.sort(key=lambda item: (
         activity_start_minute(item[0]) is None,
         activity_start_minute(item[0]) if activity_start_minute(item[0]) is not None else 1500,
