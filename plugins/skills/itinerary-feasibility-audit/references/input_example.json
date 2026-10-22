@@ -1,0 +1,14 @@
+{
+  "activities": [
+    {
+      "place_name": "Example Museum",
+      "start_time": "10:00",
+      "duration_minutes": 90
+    },
+    {
+      "place_name": "Canal Gallery",
+      "start_time": "11:00",
+      "duration_minutes": 60
+    }
+  ]
+}

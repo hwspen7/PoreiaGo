@@ -1,0 +1,47 @@
+{
+  "id": "multi-stop-route-optimizer",
+  "domain": "Places & Navigation",
+  "description": "Suggest efficient stop order by proximity.",
+  "wave": "P0",
+  "release_state": "implemented",
+  "entrypoint": "handler.py:run",
+  "keywords": [
+    "optimize stops",
+    "route optimization",
+    "stop order",
+    "optimize route"
+  ],
+  "required_capabilities": [],
+  "mutates_state": false,
+  "depends_on": [],
+  "priority": 50,
+  "timeout_seconds": 12,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "waypoints": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 20,
+        "items": {
+          "type": "object"
+        }
+      },
+      "return_to_start": {
+        "type": "boolean"
+      },
+      "fixed_destination": {
+        "type": "boolean"
+      },
+      "max_leg_km": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "max_total_km": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      }
+    },
+    "additionalProperties": true
+  }
+}

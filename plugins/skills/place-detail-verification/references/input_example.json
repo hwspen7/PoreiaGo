@@ -1,0 +1,9 @@
+{
+  "place": "Example Museum",
+  "candidates": [
+    {
+      "name": "Example Museum",
+      "osm_id": 8
+    }
+  ]
+}

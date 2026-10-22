@@ -1,0 +1,41 @@
+{
+  "id": "seasonal-experience-intelligence",
+  "domain": "Travel Planning & Experiences",
+  "description": "Match documented seasonal experience candidates to travel months without making climate claims.",
+  "wave": "P2",
+  "release_state": "implemented",
+  "entrypoint": "handler.py:run",
+  "keywords": [
+    "seasonal",
+    "experience",
+    "intelligence"
+  ],
+  "required_capabilities": [],
+  "mutates_state": false,
+  "depends_on": [],
+  "priority": 50,
+  "timeout_seconds": 12,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "month": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 12
+      },
+      "candidates": {
+        "type": "array",
+        "maxItems": 160,
+        "items": {
+          "type": "object"
+        }
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 30
+      }
+    },
+    "additionalProperties": true
+  }
+}

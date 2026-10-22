@@ -1,0 +1,55 @@
+{
+  "id": "hourly-weather-forecast",
+  "domain": "Weather & Preparation",
+  "description": "Retrieve location-specific hourly forecast.",
+  "wave": "P0",
+  "release_state": "implemented",
+  "entrypoint": "handler.py:run",
+  "keywords": [
+    "weather",
+    "forecast",
+    "temperature",
+    "wind",
+    "rain"
+  ],
+  "required_capabilities": [
+    "geocode",
+    "weather"
+  ],
+  "mutates_state": false,
+  "depends_on": [],
+  "priority": 10,
+  "timeout_seconds": 25,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "city": {
+        "type": "string"
+      },
+      "destination": {
+        "type": "string"
+      },
+      "latitude": {
+        "type": "number"
+      },
+      "longitude": {
+        "type": "number"
+      },
+      "forecast_days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 14
+      },
+      "date": {
+        "type": "string",
+        "format": "date"
+      },
+      "rain_threshold_pct": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 100
+      }
+    },
+    "additionalProperties": true
+  }
+}

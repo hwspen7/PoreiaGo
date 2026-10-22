@@ -1,0 +1,125 @@
+{
+  "profiles": [
+    {
+      "name": "ollama-router",
+      "role": "router",
+      "provider": "openai-compatible",
+      "model": "qwen3.8:27b-q4_K_M",
+      "model_env": "ALIGO_LOCAL_MODEL",
+      "base_url": "http://127.0.0.1:11434/v1",
+      "api_key_env": "ALIGO_OLLAMA_API_KEY",
+      "request_timeout_seconds": 300,
+      "decision_only": true,
+      "max_output_tokens": 1536
+    },
+    {
+      "name": "ollama-reasoning",
+      "role": "reasoning",
+      "provider": "openai-compatible",
+      "model": "qwen3.8:27b-q4_K_M",
+      "model_env": "ALIGO_LOCAL_MODEL",
+      "base_url": "http://127.0.0.1:11434/v1",
+      "api_key_env": "ALIGO_OLLAMA_API_KEY",
+      "request_timeout_seconds": 300,
+      "decision_only": false,
+      "max_output_tokens": 8192
+    },
+    {
+      "name": "ollama-synthesis",
+      "role": "synthesis",
+      "provider": "openai-compatible",
+      "model": "qwen3.8:27b-q4_K_M",
+      "model_env": "ALIGO_LOCAL_MODEL",
+      "base_url": "http://127.0.0.1:11434/v1",
+      "api_key_env": "ALIGO_OLLAMA_API_KEY",
+      "request_timeout_seconds": 300,
+      "decision_only": false,
+      "max_output_tokens": 4096
+    },
+    {
+      "name": "groq-synthesis",
+      "role": "synthesis",
+      "provider": "openai-compatible",
+      "model": "qwen/qwen3.8-27b",
+      "model_env": "ALIGO_GROQ_MODEL",
+      "base_url": "https://api.groq.com/openai/v1",
+      "api_key_env": "GROQ_API_KEY",
+      "request_timeout_seconds": 65,
+      "max_completion_tokens": 2600,
+      "reasoning_effort": "none"
+    },
+    {
+      "name": "groq-reasoning",
+      "role": "reasoning",
+      "provider": "openai-compatible",
+      "model": "qwen/qwen3.8-27b",
+      "model_env": "ALIGO_GROQ_MODEL",
+      "base_url": "https://api.groq.com/openai/v1",
+      "api_key_env": "GROQ_API_KEY",
+      "request_timeout_seconds": 65,
+      "max_completion_tokens": 2600,
+      "reasoning_effort": "none"
+    },
+    {
+      "name": "groq-router",
+      "role": "router",
+      "provider": "openai-compatible",
+      "model": "qwen/qwen3.8-27b",
+      "model_env": "ALIGO_GROQ_MODEL",
+      "base_url": "https://api.groq.com/openai/v1",
+      "api_key_env": "GROQ_API_KEY",
+      "request_timeout_seconds": 65,
+      "max_completion_tokens": 3200,
+      "reasoning_effort": "none"
+    },
+    {
+      "name": "reasoning-primary",
+      "role": "reasoning",
+      "provider": "openai-compatible",
+      "model": "deepseek-chat",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_key_env": "ALIGO_REASONING_API_KEY"
+    },
+    {
+      "name": "reasoning-backup",
+      "role": "reasoning",
+      "provider": "openai-compatible",
+      "model": "gpt-4.1-mini",
+      "base_url": "https://api.openai.com/v1",
+      "api_key_env": "ALIGO_OPENAI_API_KEY"
+    },
+    {
+      "name": "router-primary",
+      "role": "router",
+      "provider": "openai-compatible",
+      "model": "deepseek-chat",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_key_env": "ALIGO_ROUTER_API_KEY"
+    },
+    {
+      "name": "synthesis-primary",
+      "role": "synthesis",
+      "provider": "openai-compatible",
+      "model": "deepseek-chat",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_key_env": "ALIGO_SYNTHESIS_API_KEY"
+    },
+    {
+      "name": "embedding-multilingual",
+      "role": "embedding",
+      "provider": "local-hf",
+      "model": "intfloat/multilingual-e5-large-instruct",
+      "query_instruction": "Given a travel-related question, retrieve relevant passages from multilingual travel documents that answer the question.",
+      "query_template": "Instruct: {instruction}\nQuery: {query}",
+      "max_input_tokens": 512,
+      "document_token_budget": 448,
+      "document_token_overlap": 48
+    },
+    {
+      "name": "reranker-multilingual",
+      "role": "reranking",
+      "provider": "local-hf",
+      "model": "mixedbread-ai/mxbai-rerank-base-v2"
+    }
+  ]
+}

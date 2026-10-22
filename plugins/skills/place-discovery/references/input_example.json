@@ -1,0 +1,9 @@
+{
+  "destination": "Osaka",
+  "candidates": [
+    {
+      "name": "Museum",
+      "category": "museum"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "visit_date": "2026-10-20",
+  "candidates": [
+    {
+      "name": "Example Museum",
+      "weekly_hours": {
+        "tue": [
+          {
+            "open": "10:00",
+            "close": "17:00"
+          }
+        ]
+      }
+    }
+  ]
+}

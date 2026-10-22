@@ -1,0 +1,39 @@
+{
+  "id": "opening-hours-intelligence",
+  "domain": "Travel Planning & Experiences",
+  "description": "Summarize supplied structured venue opening schedules for a selected visit date.",
+  "wave": "P2",
+  "release_state": "implemented",
+  "entrypoint": "handler.py:run",
+  "keywords": [
+    "opening",
+    "hours",
+    "intelligence"
+  ],
+  "required_capabilities": [],
+  "mutates_state": false,
+  "depends_on": [],
+  "priority": 50,
+  "timeout_seconds": 12,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "visit_date": {
+        "type": "string"
+      },
+      "candidates": {
+        "type": "array",
+        "maxItems": 160,
+        "items": {
+          "type": "object"
+        }
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 30
+      }
+    },
+    "additionalProperties": true
+  }
+}

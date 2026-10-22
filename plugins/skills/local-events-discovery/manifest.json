@@ -1,0 +1,52 @@
+{
+  "id": "local-events-discovery",
+  "domain": "Travel Planning & Experiences",
+  "description": "Filter date-specific local event candidates using supplied event records.",
+  "wave": "P2",
+  "release_state": "implemented",
+  "entrypoint": "handler.py:run",
+  "keywords": [
+    "local",
+    "events",
+    "discovery"
+  ],
+  "required_capabilities": [],
+  "mutates_state": false,
+  "depends_on": [],
+  "priority": 50,
+  "timeout_seconds": 12,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "start_date": {
+        "type": "string"
+      },
+      "end_date": {
+        "type": "string"
+      },
+      "interests": {
+        "type": "array",
+        "maxItems": 20,
+        "items": {
+          "type": "string"
+        }
+      },
+      "events": {
+        "type": "array",
+        "maxItems": 160,
+        "items": {
+          "type": "object"
+        }
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 30
+      },
+      "city": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  }
+}

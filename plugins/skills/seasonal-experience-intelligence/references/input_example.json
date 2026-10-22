@@ -1,0 +1,14 @@
+{
+  "month": 10,
+  "candidates": [
+    {
+      "name": "Autumn Orchard",
+      "season_months": [
+        9,
+        10,
+        11
+      ],
+      "category": "outdoor"
+    }
+  ]
+}

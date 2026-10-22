@@ -1,0 +1,15 @@
+{
+  "origin": "Example City",
+  "max_distance_km": 140,
+  "candidates": [
+    {
+      "name": "Riverside Village",
+      "distance_km": 62,
+      "category": "heritage"
+    },
+    {
+      "name": "Far Mountain",
+      "distance_km": 230
+    }
+  ]
+}

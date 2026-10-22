@@ -1,0 +1,44 @@
+{
+  "id": "day-trip-discovery",
+  "domain": "Travel Planning & Experiences",
+  "description": "Discover nearby day-trip candidates from supplied distances without inventing schedules.",
+  "wave": "P2",
+  "release_state": "implemented",
+  "entrypoint": "handler.py:run",
+  "keywords": [
+    "day",
+    "trip",
+    "discovery"
+  ],
+  "required_capabilities": [],
+  "mutates_state": false,
+  "depends_on": [],
+  "priority": 50,
+  "timeout_seconds": 12,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "origin": {
+        "type": "string"
+      },
+      "max_distance_km": {
+        "type": "number",
+        "minimum": 1,
+        "maximum": 1000
+      },
+      "candidates": {
+        "type": "array",
+        "maxItems": 160,
+        "items": {
+          "type": "object"
+        }
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 30
+      }
+    },
+    "additionalProperties": true
+  }
+}

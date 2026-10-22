@@ -1,0 +1,472 @@
+{
+  "version": "2.0",
+  "description": "Read-only local-model quality probes: task reliability, practical planning, traveler constraints and honest uncertainty. Named places are evaluation fixtures, never production rules.",
+  "cases": [
+    {
+      "id": "japan_create",
+      "kind": "create",
+      "quick": true,
+      "request": "Design a five-day trip in Japan for two young travelers, centered on Kyoto and Nara. Include local culture, regional food and a moderate spending level. Spend at least one day in Nara and avoid unnecessary backtracking.",
+      "destination": "Japan",
+      "days": 5,
+      "fields": {
+        "destination": "Japan",
+        "days": 5,
+        "travelers": 2
+      },
+      "required_terms": [
+        "Kyoto",
+        "Nara"
+      ],
+      "constraint_signals": [
+        [
+          "food",
+          "cuisine",
+          "meal",
+          "dining",
+          "market",
+          "restaurant"
+        ],
+        [
+          "temple",
+          "shrine",
+          "cultural",
+          "heritage",
+          "museum",
+          "historic"
+        ]
+      ]
+    },
+    {
+      "id": "japan_day3_revise",
+      "kind": "revise",
+      "quick": true,
+      "depends_on": "japan_create",
+      "changed_day": 3,
+      "request": "Make Day 3 more exciting for young travelers, with distinctive local experiences. Keep Days 1, 2, 4, and 5 unchanged and preserve the original destination, duration, and budget preferences."
+    },
+    {
+      "id": "japan_spanish_summary",
+      "kind": "discuss",
+      "quick": true,
+      "depends_on": "japan_day3_revise",
+      "language": "es",
+      "request": "Resume en español el itinerario actualizado e indica qué cambió en el día 3. No modifiques el plan."
+    },
+    {
+      "id": "accessibility_create",
+      "kind": "create",
+      "quick": true,
+      "request": "Design a four-day relaxed trip in San Francisco for an older traveler with limited mobility. Avoid strenuous hikes, steep climbs, and long walking days. Suggest practical accessible alternatives and short transfers.",
+      "destination": "San Francisco",
+      "days": 4,
+      "fields": {
+        "destination": "San Francisco",
+        "days": 4
+      },
+      "required_terms": [],
+      "constraint_signals": [
+        [
+          "accessible",
+          "mobility",
+          "wheelchair",
+          "step-free",
+          "elevator",
+          "short walk",
+          "limited walking"
+        ],
+        [
+          "transfer",
+          "taxi",
+          "ride",
+          "transport",
+          "transit",
+          "shuttle"
+        ]
+      ]
+    },
+    {
+      "id": "budget_create",
+      "kind": "create",
+      "quick": false,
+      "request": "Plan six days in Madrid and Toledo for one traveler with a total on-the-ground budget of EUR 1100, excluding flights. Prioritize cultural sites, reasonably priced food and modest lodging, and explicitly explain how the budget should be managed without inventing current prices.",
+      "destination": "Spain",
+      "days": 6,
+      "fields": {
+        "destination": "Spain",
+        "days": 6,
+        "budget": 1100,
+        "currency": "EUR",
+        "travelers": 1
+      },
+      "required_terms": [
+        "Madrid",
+        "Toledo"
+      ],
+      "constraint_signals": [
+        [
+          "budget",
+          "EUR",
+          "€",
+          "cost",
+          "spending"
+        ],
+        [
+          "food",
+          "cuisine",
+          "meal",
+          "dining",
+          "tapas"
+        ]
+      ]
+    },
+    {
+      "id": "multi_city_create",
+      "kind": "create",
+      "quick": false,
+      "request": "Build a seven-day Portugal itinerary for six nights split between Lisbon and Porto, with three nights in each city. Include a sensible intercity transfer once, cultural highlights and realistic daily pacing. Do not invent train departures or verified ticket prices.",
+      "destination": "Portugal",
+      "days": 7,
+      "fields": {
+        "destination": "Portugal",
+        "days": 7
+      },
+      "required_terms": [
+        "Lisbon",
+        "Porto"
+      ],
+      "constraint_signals": [
+        [
+          "train",
+          "rail",
+          "transfer",
+          "travel between",
+          "intercity"
+        ],
+        [
+          "culture",
+          "cultural",
+          "historic",
+          "heritage",
+          "museum",
+          "architecture"
+        ]
+      ]
+    },
+    {
+      "id": "spanish_create",
+      "kind": "create",
+      "quick": false,
+      "language": "es",
+      "request": "Diseña un itinerario tranquilo de cuatro días por Sevilla y Córdoba, con historia, gastronomía y traslados razonables. Evita afirmar horarios o precios actuales que no estén verificados.",
+      "destination": "Spain",
+      "days": 4,
+      "fields": {
+        "destination": "Spain",
+        "days": 4,
+        "output_language": "es"
+      },
+      "required_terms": [
+        "Sevilla",
+        "Córdoba"
+      ],
+      "constraint_signals": [
+        [
+          "historia",
+          "histórico",
+          "histórica",
+          "patrimonio",
+          "museo",
+          "catedral"
+        ],
+        [
+          "comida",
+          "gastronomía",
+          "tapas",
+          "restaurante",
+          "cocina"
+        ]
+      ]
+    },
+    {
+      "id": "winter_discuss",
+      "kind": "discuss",
+      "quick": false,
+      "request": "What should I consider before visiting Iceland in winter? I am researching the destination and am not asking you to create an itinerary yet."
+    },
+    {
+      "id": "arrival_departure_create",
+      "kind": "create",
+      "quick": false,
+      "request": "Create a three-day trip to Prague for a visitor arriving after 20:30 on Day 1 and leaving by train at 07:00 on Day 3. Prioritize neighborhood culture and local food. Do not assume full sightseeing days at arrival or departure. Explicitly explain where to use flexible options.",
+      "destination": "Prague",
+      "days": 3,
+      "fields": {
+        "destination": "Prague",
+        "days": 3
+      },
+      "required_terms": [
+        "Prague"
+      ],
+      "constraint_signals": [
+        [
+          "arrival",
+          "arriving",
+          "evening",
+          "late",
+          "check-in"
+        ],
+        [
+          "departure",
+          "leaving",
+          "train",
+          "station"
+        ]
+      ]
+    },
+    {
+      "id": "rain_resilience_create",
+      "kind": "create",
+      "quick": false,
+      "request": "Plan four unhurried days in Edinburgh for a traveler interested in architecture, independent booksellers and local food. For each day provide a practical rain alternative but do not invent a forecast or opening hours.",
+      "destination": "Edinburgh",
+      "days": 4,
+      "fields": {
+        "destination": "Edinburgh",
+        "days": 4
+      },
+      "required_terms": [],
+      "constraint_signals": [
+        [
+          "rain",
+          "wet",
+          "indoor",
+          "weather",
+          "alternative"
+        ],
+        [
+          "books",
+          "bookshop",
+          "bookstore",
+          "architecture",
+          "historic"
+        ]
+      ]
+    },
+    {
+      "id": "food_safety_create",
+      "kind": "create",
+      "quick": false,
+      "request": "Design a four-day visit to Valencia for two travelers interested in food and architecture. One traveler has a severe peanut allergy. Keep food experiences possible but require ingredient verification and never promise food is allergen-free.",
+      "destination": "Valencia",
+      "days": 4,
+      "fields": {
+        "destination": "Valencia",
+        "days": 4,
+        "travelers": 2
+      },
+      "required_terms": [],
+      "constraint_signals": [
+        [
+          "allergy",
+          "allergen",
+          "peanut",
+          "ingredient",
+          "cross-contamination"
+        ],
+        [
+          "food",
+          "cuisine",
+          "market",
+          "restaurant",
+          "meal"
+        ]
+      ]
+    },
+    {
+      "id": "family_pace_create",
+      "kind": "create",
+      "quick": false,
+      "request": "Build a five-day trip to Copenhagen for a family with a preschooler and a stroller. Avoid very long walks and overly packed schedules. Propose rest breaks, suitable neighborhood grouping and cautions about verifying stroller access.",
+      "destination": "Copenhagen",
+      "days": 5,
+      "fields": {
+        "destination": "Copenhagen",
+        "days": 5
+      },
+      "required_terms": [],
+      "constraint_signals": [
+        [
+          "child",
+          "family",
+          "stroller",
+          "young",
+          "preschool"
+        ],
+        [
+          "rest",
+          "break",
+          "walk",
+          "transfer",
+          "access"
+        ]
+      ]
+    },
+    {
+      "id": "intercity_moderate_create",
+      "kind": "create",
+      "quick": false,
+      "request": "Design eight days between Munich and Salzburg for one traveler interested in museums, mountain scenery and regional dishes. Include a sensible single intercity transfer, weather alternatives for outdoor plans, and two reasonably relaxed travel days. Dates are unknown.",
+      "destination": "Germany and Austria",
+      "days": 8,
+      "fields": {
+        "destination": "Germany and Austria",
+        "days": 8
+      },
+      "required_terms": [
+        "Munich",
+        "Salzburg"
+      ],
+      "constraint_signals": [
+        [
+          "train",
+          "transfer",
+          "travel",
+          "rail"
+        ],
+        [
+          "mountain",
+          "museum",
+          "culture",
+          "scenery"
+        ]
+      ]
+    },
+    {
+      "id": "low_budget_create",
+      "kind": "create",
+      "quick": false,
+      "request": "Plan five days in Ljubljana for a solo traveler with a maximum ground budget of EUR 500 excluding long-haul flights. Include realistic category trade-offs but never invent accommodation quotes or current ticket prices. Explain what should be booked in advance.",
+      "destination": "Ljubljana",
+      "days": 5,
+      "fields": {
+        "destination": "Ljubljana",
+        "days": 5,
+        "budget": 500,
+        "currency": "EUR",
+        "travelers": 1
+      },
+      "required_terms": [],
+      "constraint_signals": [
+        [
+          "budget",
+          "cost",
+          "eur",
+          "€",
+          "spending"
+        ],
+        [
+          "book",
+          "ticket",
+          "reserve",
+          "accommodation"
+        ]
+      ]
+    },
+    {
+      "id": "columbus_city_3day",
+      "kind": "create",
+      "quick": false,
+      "request": "Plan three days specifically in Columbus, Ohio, for a first-time visitor interested in local history, art, food and walkable neighborhoods. Include arrival logistics, sensible meals, named city attractions and a useful rain option. Do not silently replace the city with the whole state.",
+      "destination": "Columbus",
+      "days": 3,
+      "fields": {
+        "destination": "Columbus",
+        "days": 3
+      },
+      "required_terms": [
+        "Columbus"
+      ],
+      "constraint_signals": [
+        [
+          "food",
+          "restaurant",
+          "dining",
+          "market",
+          "cuisine"
+        ],
+        [
+          "museum",
+          "art",
+          "historic",
+          "history",
+          "gallery"
+        ]
+      ]
+    },
+    {
+      "id": "japan_11day_extended",
+      "kind": "create",
+      "quick": false,
+      "request": "Plan an eleven-day trip in Japan, based around Kyoto, Osaka and Nara, for two adults interested in regional food, temples, craft culture and thoughtful neighborhood exploration. Account for hotel bases, realistic city transfers, arrival and departure, local meals and rain alternatives. Avoid repeating the same attractions across days.",
+      "destination": "Japan",
+      "days": 11,
+      "fields": {
+        "destination": "Japan",
+        "days": 11,
+        "travelers": 2
+      },
+      "required_terms": [
+        "Kyoto",
+        "Osaka",
+        "Nara"
+      ],
+      "constraint_signals": [
+        [
+          "food",
+          "dinner",
+          "meal",
+          "cuisine",
+          "lunch"
+        ],
+        [
+          "transfer",
+          "train",
+          "rail",
+          "transit"
+        ]
+      ]
+    },
+    {
+      "id": "spain_14day_long",
+      "kind": "create",
+      "quick": false,
+      "request": "Design fourteen days visiting Barcelona, Madrid, Toledo and Seville with cultural experiences, food, overnight allocation and realistic intercity travel days. Distinguish major travel days from sightseeing days, and include meaningful location-based rainy-day alternatives. Avoid inventing exact train schedules.",
+      "destination": "Spain",
+      "days": 14,
+      "fields": {
+        "destination": "Spain",
+        "days": 14
+      },
+      "required_terms": [
+        "Barcelona",
+        "Madrid",
+        "Seville"
+      ],
+      "constraint_signals": [
+        [
+          "food",
+          "meal",
+          "restaurant",
+          "dining"
+        ],
+        [
+          "train",
+          "rail",
+          "transfer",
+          "travel"
+        ]
+      ]
+    }
+  ]
+}

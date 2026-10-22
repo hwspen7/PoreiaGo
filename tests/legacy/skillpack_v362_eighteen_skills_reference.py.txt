@@ -1,0 +1,192 @@
+"""Behavioral acceptance suite for the 18 independent executable travel Skills."""
+from __future__ import annotations
+import json
+from pathlib import Path
+from types import SimpleNamespace
+import pytest
+from aligo.contracts import Evidence
+from aligo.providers import ProviderResult, ProviderUnavailable
+from aligo.registry import SkillRegistry
+from scripts.install_v362_skills import ACTIVE, migrate
+
+ROOT=Path(__file__).resolve().parents[1]
+
+class Providers:
+    def __init__(self):self.calls=[]
+    async def request(self,name,**kwargs):
+        self.calls.append((name,kwargs))
+        if name=='geocode':
+            place=kwargs['place']
+            if place=='Springfield':
+                return ProviderResult({'results':[
+                    {'name':'Springfield','country':'United States','latitude':39.7,'longitude':-89.6},
+                    {'name':'Springfield','country':'Australia','latitude':-27.6,'longitude':152.9}]},
+                    [Evidence(provider='mock-geocoder')])
+            return ProviderResult({'results':[{'name':place,'country':'Japan','latitude':34.7,'longitude':135.5}]},
+                                  [Evidence(provider='mock-geocoder')])
+        if name=='places':
+            kind=kwargs['kind']
+            venue={'restaurant':{'name':'Mapped Dining Venue','cuisine':'Japanese'},
+                   'hotel':{'name':'Mapped Hotel'},'tourism':{'name':'Mapped Museum'}}.get(kind,{'name':'Mapped Viewpoint'})
+            return ProviderResult({'results':[{**venue,'latitude':34.7,'longitude':135.5,'osm_id':123}]},
+                                  [Evidence(provider='mock-map')])
+        if name=='walking_route':
+            return ProviderResult({'distance_m':5400,'duration_s':2400,'geometry':{'type':'LineString','coordinates':[]}},
+                                  [Evidence(provider='mock-router')])
+        if name=='weather':
+            return ProviderResult({'timezone':'Asia/Tokyo','hourly':{'time':['2026-10-20T08:00'],
+                   'temperature_2m':[16], 'precipitation_probability':[30]}},
+                   [Evidence(provider='mock-weather')])
+        raise ProviderUnavailable('Offline fixture has no other capabilities.')
+
+class Store:
+    def __init__(self):self.entries=[]
+    def add_expense(self,user,session,amount,currency,category):
+        self.entries.append({'user':user,'session':session,'amount':amount,
+                             'currency':currency,'category':category})
+    def expenses(self,user):return [x for x in self.entries if x['user']==user]
+
+@pytest.fixture
+def ctx():
+    return SimpleNamespace(providers=Providers(),store=Store(),user_id='user-a',
+                           session_id='sample',fields={'destination':'Osaka'},shared={},query='Explore Japan')
+
+@pytest.mark.parametrize('name',sorted(ACTIVE))
+@pytest.mark.asyncio
+async def test_each_skill_executes_its_documented_example(name,ctx):
+    folder=ROOT/'plugins/skills'/name
+    spec=SkillRegistry(ROOT/'plugins/skills').get(name)
+    assert spec.entrypoint=='handler.py:run'
+    assert len((folder/'SKILL.md').read_text().splitlines())>=40
+    assert '## Execution protocol' in (folder/'SKILL.md').read_text()
+    args=json.loads((folder/'references/input_example.json').read_text())
+    result=await SkillRegistry(ROOT/'plugins/skills').run(name,ctx,args)
+    assert result.status in {'ok','partial'}, (name,result)
+    assert isinstance(result.data,dict) and result.data, (name,result)
+    assert result.text and isinstance(result.limitations,list)
+
+@pytest.mark.asyncio
+async def test_candidate_grounding_and_airport_endpoint_ranking(ctx):
+    reg=SkillRegistry(ROOT/'plugins/skills')
+    place=await reg.run('place-discovery',ctx,{'destination':'Osaka','kind':'tourism'})
+    assert place.data['results'][0]['name']=='Mapped Museum'
+    assert any(e.provider=='mock-map' for e in place.sources)
+    restaurant=await reg.run('restaurant-discovery',ctx,{'city':'Osaka','cuisine':'Japanese'})
+    assert restaurant.data['results'][0]['name']=='Mapped Dining Venue'
+    route=await reg.run('airport-transfer',ctx,{'origin':'KIX','destination':'Namba','route_options':[
+        {'mode':'rail','destination':'Tennoji','transfers':1},
+        {'mode':'rail','destination':'Namba','transfers':0}]})
+    assert route.data['preferred_candidate']['destination']=='Namba'
+    assert route.data['route_options'][1]['requires_endpoint_confirmation'] is True
+
+@pytest.mark.asyncio
+async def test_time_conflicts_and_cost_units_are_real_rules(ctx):
+    reg=SkillRegistry(ROOT/'plugins/skills')
+    checked=await reg.run('schedule-conflict-validation',ctx,{'events':[
+        {'name':'Museum','start':'2026-10-20T10:00','end':'2026-10-20T12:00','transfer_buffer_minutes':30},
+        {'name':'Lunch','start':'2026-10-20T12:15','end':'2026-10-20T13:30'}]})
+    assert len(checked.data['conflicts'])==1
+    assert checked.data['conflicts'][0]['required_buffer_minutes']==30
+    result=await reg.run('travel-cost-estimation',ctx,{'items':[
+        {'amount':1000,'currency':'JPY','basis':'per_person'},
+        {'amount':3000,'currency':'JPY','basis':'group_total'},
+        {'amount':50,'currency':'USD','basis':'per_person'},
+        {'amount':-20,'currency':'USD','basis':'per_person'}]})
+    assert len(result.data['totals'])==3 and result.data['invalid_items']==1
+
+@pytest.mark.asyncio
+async def test_no_fabrication_for_missing_providers_and_sources(ctx):
+    reg=SkillRegistry(ROOT/'plugins/skills')
+    checked=await reg.run('source-verification',ctx,{
+       'sources':[{'provider':'official','url':'https://example.org/admission','observed_at':'2020-01-01'}]})
+    assert checked.data['claim_status']=='verification_pending'
+    assert checked.data['records'][0]['stale'] is True
+    unknown=await reg.run('place-detail-verification',ctx,{'place':'Unknown Place','candidates':[]})
+    assert unknown.data['verification_level']=='unverified'
+    ctx.providers=None
+    weather=await reg.run('hourly-weather-forecast',ctx,{'city':'Osaka'})
+    assert weather.status=='unavailable' and not weather.sources
+
+@pytest.mark.asyncio
+async def test_mutations_need_consent_and_replanning_preserves_original(ctx):
+    reg=SkillRegistry(ROOT/'plugins/skills')
+    bad=await reg.run('expense-tracking',ctx,{'action':'add','amount':20,'currency':'USD'})
+    assert bad.status=='partial' and ctx.store.entries==[]
+    ok=await reg.run('expense-tracking',ctx,{'action':'add','amount':20,'currency':'USD','consent':True})
+    assert ok.data['totals_by_currency']['USD']==20
+    day=[{'place':'Museum','start_time':'10:00'},{'place':'Park','start_time':'13:00'}]
+    change=await reg.run('disruption-replanning',ctx,{
+        'activities':day,'disruption':{'type':'closure','affected_places':['Museum']}})
+    assert change.data['affected_activity_indices']==[0]
+    assert change.data['requires_approval'] is True and 'replanning_action' not in day[0]
+
+@pytest.mark.asyncio
+async def test_export_retains_last_day_and_rejects_oversized_days(ctx):
+    reg=SkillRegistry(ROOT/'plugins/skills')
+    itinerary={'title':'Trip','days':[{'day':i,'activities':[{'description':f'Unique activity {i}'}]}
+                                        for i in range(1,31)]}
+    result=await reg.run('itinerary-export',ctx,{'itinerary':itinerary,'format':'markdown'})
+    assert result.data['day_count']==30 and 'Unique activity 30' in result.data['content']
+    bad=await reg.run('itinerary-export',ctx,{'itinerary':{'days':[{}]*31}})
+    assert bad.status=='partial'
+
+def test_installer_is_idempotent_and_archives_only_legacy(tmp_path):
+    root=tmp_path
+    for name in ACTIVE:
+        folder=root/'plugins'/'skills'/name
+        folder.mkdir(parents=True)
+        (folder/'handler.py').write_text('async def run(ctx,args): pass')
+        (folder/'SKILL.md').write_text('Specification')
+        (folder/'manifest.json').write_text(json.dumps({'id':name,'entrypoint':'handler.py:run','release_state':'implemented'}))
+    retired=root/'plugins'/'skills'/'obsolete'
+    retired.mkdir()
+    (retired/'manifest.json').write_text('{}')
+    first=migrate(root=root)
+    assert first['retired_now']==1
+    assert (root/'plugins/retired-skills-v361/obsolete/manifest.json').is_file()
+    assert migrate(root=root)['retired_now']==0
+    assert set(p.parent.name for p in (root/'plugins/skills').glob('*/manifest.json'))==ACTIVE
+
+@pytest.mark.asyncio
+async def test_schedule_rejects_mixed_timezone_types_without_crashing(ctx):
+    result=await SkillRegistry(ROOT/'plugins/skills').run('schedule-conflict-validation',ctx,{'events':[
+       {'start':'2026-10-20T09:00','end':'2026-10-20T10:00'},
+       {'start':'2026-10-20T11:00+09:00','end':'2026-10-20T12:00+09:00'}]})
+    assert result.status=='partial' and 'mixed_timezones' in result.data['invalid_events']
+
+@pytest.mark.asyncio
+async def test_airport_skips_invalid_duration_and_transit_skips_invalid_transfers(ctx):
+    registry=SkillRegistry(ROOT/'plugins/skills')
+    options=[{'mode':'rail','origin':'Airport','destination':'Hotel',
+              'duration_minutes':'fast','transfers':0},
+             {'mode':'rail','origin':'Airport','destination':'Hotel',
+              'duration_minutes':40,'transfers':0}]
+    airport=await registry.run('airport-transfer',ctx,{'destination':'Hotel','route_options':options})
+    assert len(airport.data['route_options'])==1
+    public=await registry.run('public-transit-router',ctx,{'origin':'Airport','destination':'Hotel',
+      'route_options':[{'mode':'rail','transfers':'one'},options[1]]})
+    assert len(public.data['route_options'])==1
+
+@pytest.mark.asyncio
+async def test_optional_provider_transit_and_place_details(ctx):
+    class Extended(Providers):
+        async def request(self, capability, **kwargs):
+            if capability=='transit_route':
+                return ProviderResult({'duration_s':1800,'distance_m':15000},[Evidence(provider='fixture-transit')])
+            if capability=='place_details':
+                return ProviderResult({'results':[{'place_id':kwargs['place_id'],
+                   'name':'Example Museum','opening_hours':'Mo-Fr 10:00-17:00'}]},
+                   [Evidence(provider='fixture-place-details')])
+            return await super().request(capability, **kwargs)
+    ctx.providers=Extended()
+    registry=SkillRegistry(ROOT/'plugins/skills')
+    points=[{'latitude':35.0,'longitude':135.0},{'latitude':35.1,'longitude':135.1}]
+    transit=await registry.run('public-transit-router',ctx,{'waypoints':points})
+    assert transit.data['provider_route']['duration_s']==1800
+    assert transit.sources[0].provider=='fixture-transit'
+    airport=await registry.run('airport-transfer',ctx,{'origin':'Airport','destination':'Hotel','waypoints':points})
+    assert airport.data['provider_route']['distance_m']==15000
+    details=await registry.run('place-detail-verification',ctx,{'place':'Example Museum',
+                'place_id':'abcd1234567890','candidates':[]})
+    assert details.data['provider_details'][0]['name']=='Example Museum'
+    assert details.data['verification_level']=='provider_details_candidate'

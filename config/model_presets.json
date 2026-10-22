@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "presets": {
+    "baseline-local": {
+      "description": "Original Ollama configuration, with one model for all stages.",
+      "stages": {
+        "router": "ollama-router",
+        "reasoning": "ollama-reasoning",
+        "synthesis": "ollama-synthesis",
+        "blueprint": "ollama-reasoning",
+        "daily": "ollama-reasoning",
+        "repair": "ollama-reasoning"
+      }
+    },
+    "stronger-local-example": {
+      "description": "Example only. Replace the placeholder with an installed model before using.",
+      "stages": {
+        "router": "ollama-router",
+        "reasoning": {"profile": "ollama-reasoning", "model": "REPLACE_WITH_INSTALLED_MODEL"},
+        "synthesis": {"profile": "ollama-synthesis", "model": "REPLACE_WITH_INSTALLED_MODEL"},
+        "blueprint": {"profile": "ollama-reasoning", "model": "REPLACE_WITH_INSTALLED_MODEL"},
+        "daily": {"profile": "ollama-reasoning", "model": "REPLACE_WITH_INSTALLED_MODEL"},
+        "repair": {"profile": "ollama-reasoning", "model": "REPLACE_WITH_INSTALLED_MODEL"}
+      }
+    },
+    "cloud-example": {
+      "description": "Example only. Requires configured cloud API key and explicit benchmark opt-in.",
+      "stages": {
+        "router": "ollama-router",
+        "reasoning": "reasoning-backup",
+        "synthesis": "ollama-synthesis",
+        "blueprint": "reasoning-backup",
+        "daily": "reasoning-backup",
+        "repair": "reasoning-backup"
+      }
+    }
+  }
+}

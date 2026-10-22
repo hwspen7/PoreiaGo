@@ -1,0 +1,51 @@
+{
+  "id": "schedule-conflict-validation",
+  "domain": "Budget & Itinerary",
+  "description": "Detect event overlap and insufficient transfer buffers.",
+  "wave": "P2",
+  "release_state": "implemented",
+  "entrypoint": "handler.py:run",
+  "keywords": [
+    "schedule conflicts",
+    "overlapping events",
+    "time clash"
+  ],
+  "required_capabilities": [],
+  "mutates_state": false,
+  "depends_on": [],
+  "priority": 50,
+  "timeout_seconds": 12,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "events": {
+        "type": "array",
+        "maxItems": 100,
+        "items": {
+          "type": "object",
+          "properties": {
+            "start": {
+              "type": "string"
+            },
+            "end": {
+              "type": "string"
+            },
+            "transfer_minutes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "buffer_minutes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "transfer_buffer_minutes": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "additionalProperties": true
+  }
+}

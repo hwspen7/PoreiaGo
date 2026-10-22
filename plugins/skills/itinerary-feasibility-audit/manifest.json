@@ -1,0 +1,36 @@
+{
+  "id": "itinerary-feasibility-audit",
+  "domain": "Travel Planning & Experiences",
+  "description": "Non-destructively flag itinerary overlaps, repeated place identifiers, and unverified activities.",
+  "wave": "P2",
+  "release_state": "implemented",
+  "entrypoint": "handler.py:run",
+  "keywords": [
+    "itinerary",
+    "feasibility",
+    "audit"
+  ],
+  "required_capabilities": [],
+  "mutates_state": false,
+  "depends_on": [],
+  "priority": 50,
+  "timeout_seconds": 12,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "activities": {
+        "type": "array",
+        "maxItems": 160,
+        "items": {
+          "type": "object"
+        }
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 30
+      }
+    },
+    "additionalProperties": true
+  }
+}

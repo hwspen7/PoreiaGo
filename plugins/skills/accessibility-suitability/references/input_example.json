@@ -1,0 +1,21 @@
+{
+  "requirements": [
+    "step_free",
+    "accessible_restroom"
+  ],
+  "candidates": [
+    {
+      "name": "Example Garden",
+      "accessibility": {
+        "step_free": true
+      }
+    },
+    {
+      "name": "Old Tower",
+      "accessibility": {
+        "step_free": false,
+        "accessible_restroom": false
+      }
+    }
+  ]
+}

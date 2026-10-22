@@ -1,0 +1,26 @@
+{
+  "candidates": [
+    {
+      "name": "Canal Gallery",
+      "neighborhood": "Canal Quarter",
+      "category": "art",
+      "place_id": "q-1"
+    },
+    {
+      "name": "Canal Walk",
+      "neighborhood": "Canal Quarter",
+      "category": "walking",
+      "place_id": "q-2"
+    },
+    {
+      "name": "Market Museum",
+      "neighborhood": "Old Market",
+      "category": "history",
+      "place_id": "q-3"
+    }
+  ],
+  "interests": [
+    "art"
+  ],
+  "limit": 5
+}
