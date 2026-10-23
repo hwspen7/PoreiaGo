@@ -7,6 +7,7 @@ import type { Health, Skill, SkillResult, Provider, ModelProfile } from './api';
 import { FormattedAnswer } from './FormattedAnswer';
 import { TopbarTripControls, CurrentTripTitle } from './TopbarTripControls';
 import { itineraryPreviewText } from './versionPreview';
+import { BrandTagline, useBrandTagline } from './brandTagline';
 import './style.css';
 
 type Page = 'chat' | 'skills' | 'memory' | 'knowledge' | 'settings';
@@ -60,7 +61,8 @@ function SkillDetails({ results }: { results: SkillResult[] }) {
   </article>)}</div></details>
 }
 function App() {
-  const [historyPreview, setHistoryPreview] = useState<{journey: string; label: string; content: string} | null>(null);
+  const brandTagline = useBrandTagline();
+  const [historyPreview, setHistoryPreview] = useState<{ journey: string; label: string; content: string } | null>(null);
   const [page, setPage] = useState<Page>('chat'); const [collapsed, setCollapsed] = useState(false); const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [health, setHealth] = useState<Health | null>(null); const [skills, setSkills] = useState<Skill[]>([]); const [sessions, setSessions] = useState<{ session_id: string; preview: string }[]>([]);
   const [sessionId, setSessionId] = useState('session-' + crypto.randomUUID().slice(0, 12));
@@ -99,9 +101,11 @@ function App() {
     const target = sessionId;
     if (!pendingSessions.current.has(target)) {
       apiJSON<{ active_itinerary: TripSnapshot | null; working_draft?: WorkingDraft | null; draft_history: DraftHistoryEntry[]; saved_snapshots: SavedSnapshotEntry[] }>('/api/trips/active?user_id=' + USER + '&session_id=' + encodeURIComponent(target))
-        .then(data => { if (!cancelled && !pendingSessions.current.has(target)) {
-          updateJourney(target, state => ({ ...state, activeTrip: data.active_itinerary, workingDraft: data.working_draft ?? null, draftHistory: data.draft_history ?? [], savedSnapshots: data.saved_snapshots ?? [] }));
-        } }).catch(() => { });
+        .then(data => {
+          if (!cancelled && !pendingSessions.current.has(target)) {
+            updateJourney(target, state => ({ ...state, activeTrip: data.active_itinerary, workingDraft: data.working_draft ?? null, draftHistory: data.draft_history ?? [], savedSnapshots: data.saved_snapshots ?? [] }));
+          }
+        }).catch(() => { });
     }
     return () => { cancelled = true; };
   }, [sessionId]);
@@ -131,31 +135,41 @@ function App() {
     pendingSessions.current.add(target);
     const controller = new AbortController();
     abortControllers.current.set(target, controller);
-    updateJourney(target, state => ({ ...state, historyLoaded: true, messages: [...state.messages, { role: 'user', content: text }],
-      loading: true, stage: 'router', active: [], error: '' }));
+    updateJourney(target, state => ({
+      ...state, historyLoaded: true, messages: [...state.messages, { role: 'user', content: text }],
+      loading: true, stage: 'router', active: [], error: ''
+    }));
     setDrafts(previous => ({ ...previous, [target]: '' }));
     let completed = false;
     let receivedError = false;
     try {
-      await streamChat({ message: text, user_id: USER, session_id: target,
-        context: {} }, (name, value) => {
+      await streamChat({
+        message: text, user_id: USER, session_id: target,
+        context: {}
+      }, (name, value) => {
         if (name === 'progress') updateJourney(target, state => ({ ...state, stage: (value as { stage?: string }).stage || state.stage }));
         if (name === 'plan') updateJourney(target, state => ({ ...state, active: (value as { skills: string[] }).skills || [] }));
         if (name === 'done') {
-          const result = value as { answer: string; results: SkillResult[]; elapsed_ms: number; planner_mode: string;
+          const result = value as {
+            answer: string; results: SkillResult[]; elapsed_ms: number; planner_mode: string;
             active_itinerary?: TripSnapshot | null; working_draft?: WorkingDraft | null; draft_history?: DraftHistoryEntry[]; saved_snapshots?: SavedSnapshotEntry[]; trip_change?: TripChange | null;
             model_issue?: string | null; model_diagnostic?: { stage?: string; code?: string; detail?: string } | null;
-            execution_trace?: ChatMessage['execution_trace']; planner_limitations?: string[] };
+            execution_trace?: ChatMessage['execution_trace']; planner_limitations?: string[]
+          };
           if (typeof result.answer !== 'string' || !result.answer.trim()) throw new Error('Backend returned an empty assistant response.');
           completed = true;
           const detail = result.model_diagnostic;
           const diagnostic = detail?.code ? `Model diagnostic: ${detail.code}${detail.stage ? ` (${detail.stage})` : ''}${detail.detail ? ` - ${detail.detail}` : ''}` :
             result.model_issue ? `Model diagnostic: ${result.model_issue}` : '';
-          updateJourney(target, state => ({ ...state, activeTrip: result.active_itinerary ?? null, workingDraft: result.working_draft ?? null, draftHistory: result.draft_history ?? state.draftHistory, savedSnapshots: result.saved_snapshots ?? state.savedSnapshots,
+          updateJourney(target, state => ({
+            ...state, activeTrip: result.active_itinerary ?? null, workingDraft: result.working_draft ?? null, draftHistory: result.draft_history ?? state.draftHistory, savedSnapshots: result.saved_snapshots ?? state.savedSnapshots,
             error: diagnostic,
-            messages: [...state.messages, { role: 'assistant', content: result.answer, results: result.results,
+            messages: [...state.messages, {
+              role: 'assistant', content: result.answer, results: result.results,
               elapsed_ms: result.elapsed_ms, planner_mode: result.planner_mode, trip_change: result.trip_change, working_draft: result.working_draft,
-              execution_trace: result.execution_trace, planner_limitations: result.planner_limitations }] }));
+              execution_trace: result.execution_trace, planner_limitations: result.planner_limitations
+            }]
+          }));
           load();
         }
         if (name === 'error') {
@@ -176,7 +190,7 @@ function App() {
   }
   async function getTripVersion(kind: 'saved' | 'draft', version: number, target: string) {
     const url = kind === 'saved' ? `/api/trips/saved/${version}` : `/api/trips/draft/${version}`;
-    return apiJSON<{itinerary?: unknown}>(`${url}?user_id=${USER}&session_id=${encodeURIComponent(target)}`);
+    return apiJSON<{ itinerary?: unknown }>(`${url}?user_id=${USER}&session_id=${encodeURIComponent(target)}`);
   }
   async function loadTripVersionTitle(kind: 'saved' | 'draft', version: number, target: string): Promise<string | null> {
     const data = await getTripVersion(kind, version, target);
@@ -188,9 +202,9 @@ function App() {
     const target = sessionRef.current;
     try {
       const data = await getTripVersion(kind, version, target);
-      if (sessionRef.current === target) setHistoryPreview({journey: target, label: kind === 'saved' ? `Saved copy #${version}` : `Working draft #${version}`, content: itineraryPreviewText(data.itinerary)});
+      if (sessionRef.current === target) setHistoryPreview({ journey: target, label: kind === 'saved' ? `Saved copy #${version}` : `Working draft #${version}`, content: itineraryPreviewText(data.itinerary) });
     } catch (error) {
-      updateJourney(target, previous => ({...previous, error: error instanceof Error ? error.message : 'Could not load a saved version.'}));
+      updateJourney(target, previous => ({ ...previous, error: error instanceof Error ? error.message : 'Could not load a saved version.' }));
     }
   }
   async function saveTrip() {
@@ -200,20 +214,24 @@ function App() {
     pendingSessions.current.add(target);
     updateJourney(target, current => ({ ...current, loading: true, stage: 'saving', error: '' }));
     try {
-      const snapshot = await apiJSON<{saved_id: number; source_status: string; source_version: number}>(
+      const snapshot = await apiJSON<{ saved_id: number; source_status: string; source_version: number }>(
         '/api/trips/save', {
-          method: 'POST',
-          body: JSON.stringify({user_id: USER, session_id: target,
-            expected_verified_version: state.activeTrip?.version ?? 0,
-            expected_draft_version: state.workingDraft?.draft_version ?? 0}),
-        });
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: USER, session_id: target,
+          expected_verified_version: state.activeTrip?.version ?? 0,
+          expected_draft_version: state.workingDraft?.draft_version ?? 0
+        }),
+      });
       const provisional = snapshot.source_status === 'draft';
-      updateJourney(target, prior => ({...prior, error: '', savedSnapshots: [{id: snapshot.saved_id, source_status: snapshot.source_status, source_version: snapshot.source_version, saved_at: new Date().toISOString()}, ...prior.savedSnapshots], messages: [...prior.messages, {
-        role: 'assistant',
-        content: `Saved itinerary snapshot #${snapshot.saved_id} (${provisional ? 'provisional working draft' : 'verified itinerary'}). This snapshot is retained while you continue editing.`,
-      }]}));
+      updateJourney(target, prior => ({
+        ...prior, error: '', savedSnapshots: [{ id: snapshot.saved_id, source_status: snapshot.source_status, source_version: snapshot.source_version, saved_at: new Date().toISOString() }, ...prior.savedSnapshots], messages: [...prior.messages, {
+          role: 'assistant',
+          content: `Saved itinerary snapshot #${snapshot.saved_id} (${provisional ? 'provisional working draft' : 'verified itinerary'}). This snapshot is retained while you continue editing.`,
+        }]
+      }));
     } catch (error) {
-      updateJourney(target, prior => ({...prior, error: error instanceof Error ? error.message : 'Unable to save itinerary.'}));
+      updateJourney(target, prior => ({ ...prior, error: error instanceof Error ? error.message : 'Unable to save itinerary.' }));
     } finally {
       pendingSessions.current.delete(target);
       updateJourney(target, current => ({ ...current, loading: false, stage: '', active: [] }));
@@ -224,8 +242,10 @@ function App() {
     const controller = abortControllers.current.get(target);
     if (!controller || controller.signal.aborted) return;
     controller.abort();
-    updateJourney(target, state => ({ ...state, loading: false, stage: '', active: [],
-      error: 'Request cancelled locally. A trip version already saved by the server may still be present; refresh to confirm.' }));
+    updateJourney(target, state => ({
+      ...state, loading: false, stage: '', active: [],
+      error: 'Request cancelled locally. A trip version already saved by the server may still be present; refresh to confirm.'
+    }));
   }
   async function switchSession(id: string) {
     sessionRef.current = id;
@@ -259,7 +279,7 @@ function App() {
   }
   return <div className="app-shell">
     <aside className={'sidebar' + (collapsed ? ' collapsed' : '')}>
-      <div className="identity"><div className="logo"><Compass size={23} /></div>{!collapsed && <div><strong>Aligo</strong><span>TRAVEL PLANNING BASELINE</span></div>}</div>
+      <div className="identity"><div className="logo"><Compass size={23} /></div>{!collapsed && <div className="brand-copy"><strong className="brand-wordmark">PoreiaGo</strong><BrandTagline entry={brandTagline} placement="sidebar" /></div>}</div>
       <button className="primary action-new" onClick={newSession}><Plus size={18} />{!collapsed && 'New journey'}</button>
       {!collapsed && <div className="nav-label">WORKSPACE</div>}
       <nav>{([{ page: 'chat', label: 'Travel assistant', icon: MessageCircle }, { page: 'skills', label: 'Skill catalog', icon: Layers3 }, { page: 'memory', label: 'Memory & preferences', icon: BrainCircuit }, { page: 'knowledge', label: 'Knowledge sources', icon: BookOpen }, { page: 'settings', label: 'Models & providers', icon: Settings2 }] as const).map(item => <button key={item.page} onClick={() => setPage(item.page)} className={'nav-item' + (page === item.page ? ' selected' : '')}><item.icon size={18} />{!collapsed && <span>{item.label}</span>}{item.page === 'skills' && !collapsed && <b>{skills.length}</b>}</button>)}</nav>
@@ -273,14 +293,14 @@ function App() {
       <header className="topbar">
         <div className="top-left">
           <button className="icon-button" aria-label="Toggle sidebar" onClick={() => setCollapsed(!collapsed)}><Menu size={20} /></button>
-          <span className="topbar-nav-trail"><span>Aligo</span><ArrowRight size={13} aria-hidden="true" /></span>
+          <span className="topbar-nav-trail"><span className="brand-wordmark brand-wordmark--compact">PoreiaGo</span><ArrowRight size={13} aria-hidden="true" /></span>
           {page === 'chat'
             ? (workingDraft || activeTrip)
               ? <CurrentTripTitle activeTrip={activeTrip} workingDraft={workingDraft} />
               : <span className="topbar-empty-trip">New journey</span>
             : <span className="topbar-page-summary" aria-label={`Current page: ${page}`}>
-                <strong>{({ chat: 'Assistant', skills: 'Skill catalog', memory: 'Memory & preferences', knowledge: 'Knowledge sources', settings: 'Models & providers' })[page]}</strong>
-              </span>}
+              <strong>{({ chat: 'Assistant', skills: 'Skill catalog', memory: 'Memory & preferences', knowledge: 'Knowledge sources', settings: 'Models & providers' })[page]}</strong>
+            </span>}
         </div>
         <div className="right-tools">
           {page === 'chat' && <TopbarTripControls activeTrip={activeTrip} workingDraft={workingDraft} draftHistory={draftHistory} savedSnapshots={savedSnapshots} historyPreview={historyPreview} sessionId={sessionId} loading={loading} onSave={saveTrip} onPreview={previewTripVersion} onLoadTitle={loadTripVersionTitle} />}
@@ -289,7 +309,7 @@ function App() {
         </div>
       </header>
       {(error || (page === 'chat' && journeyError)) && <div className="error-message"><AlertCircle size={15} />{page === 'chat' && journeyError ? journeyError : error}<button onClick={() => { setError(''); updateJourney(sessionId, state => ({ ...state, error: '' })); }} aria-label="Dismiss error">×</button></div>}
-      {page === 'chat' && <div className="conversation"><div className="message-list">{messages.length === 0 ? <div className="welcome"><div className="welcome-icon"><Plane size={29} /></div><div className="eyebrow">ALIGO TRAVEL INTELLIGENCE</div><h1>Where should we go next?</h1><p>Describe the trip you have in mind in any language. Aligo can plan directly with your selected model and consult available data providers when needed.</p>{(health?.models.some(m => m.role === 'router' && m.configured) && health?.models.some(m => m.role === 'reasoning' && m.configured)) ? <span className="model-ready">Model profiles configured (connectivity not verified)</span> : <span className="model-offline">Configure a compatible local or remote model to enable planning</span>}<div className="suggestions">{examples.map(ex => <button key={ex} onClick={() => submit(ex)}>{ex}<ArrowRight size={17} /></button>)}</div></div> : <div className="thread">{messages.map((m, i) => <section key={i} className={'message ' + m.role}><div className="message-content"><span className="speaker">{m.role === 'user' ? 'YOU' : 'ALIGO'}</span>{m.role === 'user' ? <div className="user-text">{m.content}</div> : <><FormattedAnswer content={m.content} />{m.working_draft ? <div className="trip-change provisional"><AlertCircle size={14} />Working draft {m.working_draft.draft_version} · needs review · continue editing</div> : null}{m.trip_change ? <div className="trip-change"><CheckCircle2 size={14} />Trip version saved · {m.trip_change.action} · Days {m.trip_change.changed_days.join(', ') || 'preferences only'}</div> : null}{m.results?.length ? <SkillDetails results={m.results} /> : null}{m.execution_trace?.length ? <details className="skill-details"><summary>Execution trace · {m.planner_mode || 'catalog'}</summary><div className="skill-detail-list">{m.execution_trace.map((step, j) => <div className="info-row" key={j}><strong>{step.name || 'Runtime'} · {step.status}</strong><span>{step.elapsed_ms !== undefined ? `${step.elapsed_ms} ms` : 'Execution deadline'}{step.dependencies?.length ? ` · Depends on: ${step.dependencies.join(', ')}` : ''}{step.recovery_for ? ` · Alternative for: ${step.recovery_for}` : ''}{step.recovered_by ? ` · Recovered by: ${step.recovered_by}` : ''}{step.input_bindings && Object.keys(step.input_bindings).length ? ` · Data: ${Object.entries(step.input_bindings).map(([key, value]) => `${key} ← ${value}`).join(', ')}` : ''}</span></div>)}{m.planner_limitations?.map((note, j) => <p className="limitations" key={j}>{note}</p>)}</div></details> : null}{m.elapsed_ms !== undefined && <div className="duration">{(m.elapsed_ms / 1000).toFixed(1)}s</div>}</>}</div></section>)}{loading && <div className="thinking"><Activity size={18} className="spin" /><div><strong>Planning your journey</strong><span>{active.length ? `Invoking: ${active.join(', ')}` : planningStage === 'itinerary_generation' ? 'Generating and validating the itinerary...' : 'Selecting relevant capabilities...'}</span></div><button className="icon-button" onClick={cancelCurrent} aria-label="Cancel current request" title="Cancel this request">Cancel</button></div>}</div>}<div ref={bottom} /></div><div className="composer-area"><div className="composer"><textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }} placeholder="Describe your destination, interests, and travel preferences..." /><div className="composer-bottom"><span><ShieldCheck size={14} /> Source-aware recommendations</span><button className="send" onClick={() => submit()} disabled={loading || !input.trim()} aria-label="Send message"><Send size={17} /></button></div></div><p className="disclaimer">Route access, availability, prices, and travel requirements must be verified with their providers.</p></div></div>}
+      {page === 'chat' && <div className="conversation"><div className="message-list">{messages.length === 0 ? <div className="welcome"><div className="welcome-icon"><Plane size={29} /></div><div className="eyebrow">POREIAGO TRAVEL INTELLIGENCE</div><h1>Where should we go next?</h1><BrandTagline entry={brandTagline} placement="welcome" /><p>Describe the trip you have in mind in any language. PoreiaGo can plan directly with your selected model and consult available data providers when needed.</p>{(health?.models.some(m => m.role === 'router' && m.configured) && health?.models.some(m => m.role === 'reasoning' && m.configured)) ? <span className="model-ready">Model profiles configured (connectivity not verified)</span> : <span className="model-offline">Configure a compatible local or remote model to enable planning</span>}<div className="suggestions">{examples.map(ex => <button key={ex} onClick={() => submit(ex)}>{ex}<ArrowRight size={17} /></button>)}</div></div> : <div className="thread">{messages.map((m, i) => <section key={i} className={'message ' + m.role}><div className="message-content"><span className="speaker">{m.role === 'user' ? 'YOU' : 'POREIAGO'}</span>{m.role === 'user' ? <div className="user-text">{m.content}</div> : <><FormattedAnswer content={m.content} />{m.working_draft ? <div className="trip-change provisional"><AlertCircle size={14} />Working draft {m.working_draft.draft_version} · needs review · continue editing</div> : null}{m.trip_change ? <div className="trip-change"><CheckCircle2 size={14} />Trip version saved · {m.trip_change.action} · Days {m.trip_change.changed_days.join(', ') || 'preferences only'}</div> : null}{m.results?.length ? <SkillDetails results={m.results} /> : null}{m.execution_trace?.length ? <details className="skill-details"><summary>Execution trace · {m.planner_mode || 'catalog'}</summary><div className="skill-detail-list">{m.execution_trace.map((step, j) => <div className="info-row" key={j}><strong>{step.name || 'Runtime'} · {step.status}</strong><span>{step.elapsed_ms !== undefined ? `${step.elapsed_ms} ms` : 'Execution deadline'}{step.dependencies?.length ? ` · Depends on: ${step.dependencies.join(', ')}` : ''}{step.recovery_for ? ` · Alternative for: ${step.recovery_for}` : ''}{step.recovered_by ? ` · Recovered by: ${step.recovered_by}` : ''}{step.input_bindings && Object.keys(step.input_bindings).length ? ` · Data: ${Object.entries(step.input_bindings).map(([key, value]) => `${key} ← ${value}`).join(', ')}` : ''}</span></div>)}{m.planner_limitations?.map((note, j) => <p className="limitations" key={j}>{note}</p>)}</div></details> : null}{m.elapsed_ms !== undefined && <div className="duration">{(m.elapsed_ms / 1000).toFixed(1)}s</div>}</>}</div></section>)}{loading && <div className="thinking"><Activity size={18} className="spin" /><div><strong>Planning your journey</strong><span>{active.length ? `Invoking: ${active.join(', ')}` : planningStage === 'itinerary_generation' ? 'Generating and validating the itinerary...' : 'Selecting relevant capabilities...'}</span></div><button className="icon-button" onClick={cancelCurrent} aria-label="Cancel current request" title="Cancel this request">Cancel</button></div>}</div>}<div ref={bottom} /></div><div className="composer-area"><div className="composer"><textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }} placeholder="Describe your destination, interests, and travel preferences..." /><div className="composer-bottom"><span><ShieldCheck size={14} /> Source-aware recommendations</span><button className="send" onClick={() => submit()} disabled={loading || !input.trim()} aria-label="Send message"><Send size={17} /></button></div></div><p className="disclaimer">Route access, availability, prices, and travel requirements must be verified with their providers.</p></div></div>}
       {page === 'skills' && <div className="dashboard"><div className="page-heading"><div className="eyebrow">CAPABILITY REGISTRY</div><h1>Skills</h1><p>{skills.length} independent itinerary-planning Skills support the travel planner.</p></div><div className="stats-grid"><div className="stat-card"><Layers3 /><span>Total documented</span><strong>{skills.length}</strong></div><div className="stat-card"><CheckCircle2 /><span>Implemented</span><strong>{skills.filter(s => s.release_state === 'implemented').length}</strong></div><div className="stat-card"><Compass /><span>Planned</span><strong>{skills.filter(s => s.release_state === 'planned').length}</strong></div></div><div className="catalog-filter"><label htmlFor="filter">Release wave</label><select id="filter" value={skillFilter} onChange={e => setSkillFilter(e.target.value)}><option value="all">All waves</option>{['P0', 'P1', 'P2', 'P3'].map(w => <option key={w} value={w}>{w}</option>)}</select></div><div className="skill-grid">{skills.filter(s => skillFilter === 'all' || s.wave === skillFilter).map((s, i) => <article className="skill-card" key={s.id}><div className="skill-card-top"><span className="skill-number">{s.wave} · {i + 1}</span><span className="tag">{s.release_state}</span></div><h3>{s.id.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}</h3><p>{s.description}</p><span className="use-skill">{s.required_capabilities.length ? s.required_capabilities.join(' · ') : 'Local capability'}</span></article>)}</div></div>}
       {page === 'settings' && <div className="dashboard"><div className="page-heading"><div className="eyebrow">EXTENSIBLE INFRASTRUCTURE</div><h1>Models & providers</h1><p>Configure model roles in <code>config/models.json</code> and external capabilities through environment variables and provider adapters.</p></div><div className="provider-columns"><div className="panel"><div className="panel-title"><BrainCircuit /><h3>Model profiles</h3></div>{(health?.models || []).map((m: ModelProfile) => <div className="info-row" key={m.name}><div><strong>{m.name}</strong><div className="meta-sub">{m.role} · {m.model}</div></div><span>{m.provider === 'local-hf' ? 'On-demand download' : m.configured ? 'Configured' : 'Not configured'}</span></div>)}</div><div className="panel"><div className="panel-title"><CloudSun /><h3>Data providers</h3></div>{(health?.providers || []).map((p: Provider) => <div className="info-row" key={p.capability}><div><strong>{p.capability}</strong><div className="meta-sub">{p.provider}</div></div><span>{p.configured ? 'Enabled' : p.requires_key ? 'Requires API key' : 'Disabled'}</span></div>)}</div></div><div className="panel provider-note"><div className="panel-title"><Lock /><h3>Access token for remote deployments</h3></div><p>Leave this empty for localhost development. If the API server uses an access token, paste it here for the current browser session.</p><div className="setting-line"><input type="password" placeholder="Bearer token" value={token} onChange={e => setToken(e.target.value)} /><button className="primary" onClick={() => { setAuthToken(token); load(); }}>Apply</button></div></div></div>}
       {page === 'memory' && <div className="dashboard"><div className="page-heading"><div className="eyebrow">PRIVACY & CONTINUITY</div><h1>Memory & preferences</h1><p>Session history persists locally. Long-term preferences are only saved after explicit consent.</p></div><div className="memory-grid"><div className="panel"><div className="panel-title"><BrainCircuit /><h3>Saved preferences</h3></div>{Object.keys(prefs).length ? Object.entries(prefs).map(([k, v]) => <div key={k} className="info-row"><strong>{k}</strong><span>{v.value} · {v.scope}</span></div>) : <div className="empty-text">No persistent preferences saved.</div>}</div><div className="panel"><div className="panel-title"><Plus /><h3>Add preference</h3></div><div className="pref-form"><input value={prefCategory} onChange={e => setPrefCategory(e.target.value)} placeholder="Category" /><textarea rows={3} value={prefValue} onChange={e => setPrefValue(e.target.value)} placeholder="For example: I prefer a relaxed pace with two attractions per day." /><label className="consent"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />I explicitly consent to saving this preference.</label><button className="primary" disabled={!consent || !prefValue.trim()} onClick={savePreference}>Save preference</button></div></div></div></div>}
