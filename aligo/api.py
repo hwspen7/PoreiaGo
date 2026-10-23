@@ -242,7 +242,7 @@ def create_app(*, database_path=None, skill_root=None, models_file=None,
     async def sessions(user_id:str='local-demo'):return {'sessions':store.sessions(user_id)}
 
     @app.get('/api/history')
-    async def history(user_id:str='local-demo',session_id:str='default'):return {'messages':store.messages(user_id,session_id,settings.memory_window*2)}
+    async def history(user_id:str='local-demo',session_id:str='default'):return {'messages':store.messages(user_id,session_id,limit=None)}
 
     @app.get('/api/trips/active')
     async def active_trip(user_id:str='local-demo',session_id:str='default'):

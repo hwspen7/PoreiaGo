@@ -8,6 +8,9 @@ import { FormattedAnswer } from './FormattedAnswer';
 import { TopbarTripControls, CurrentTripTitle } from './TopbarTripControls';
 import { itineraryPreviewText } from './versionPreview';
 import { BrandTagline, useBrandTagline } from './brandTagline';
+import { ExportMenu } from './ExportMenu';
+import { buildConversationHtml, downloadConversationHtml, printConversationPdf } from './exportConversation';
+import { getOrCreateSessionId, rememberSessionId, createSessionId } from './sessionIdentity';
 import './style.css';
 
 type Page = 'chat' | 'skills' | 'memory' | 'knowledge' | 'settings';
@@ -62,11 +65,12 @@ function SkillDetails({ results }: { results: SkillResult[] }) {
 }
 function App() {
   const brandTagline = useBrandTagline();
-  const [historyPreview, setHistoryPreview] = useState<{ journey: string; label: string; content: string } | null>(null);
+  const [historyPreview, setHistoryPreview] = useState<{journey: string; label: string; content: string} | null>(null);
   const [page, setPage] = useState<Page>('chat'); const [collapsed, setCollapsed] = useState(false); const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [health, setHealth] = useState<Health | null>(null); const [skills, setSkills] = useState<Skill[]>([]); const [sessions, setSessions] = useState<{ session_id: string; preview: string }[]>([]);
-  const [sessionId, setSessionId] = useState('session-' + crypto.randomUUID().slice(0, 12));
+  const [sessionId, setSessionId] = useState(getOrCreateSessionId);
   const sessionRef = useRef(sessionId);
+  useEffect(() => { rememberSessionId(sessionId); }, [sessionId]);
   const pendingSessions = useRef(new Set<string>());
   const abortControllers = useRef(new Map<string, AbortController>());
   const [journeys, setJourneys] = useState<Record<string, JourneyUI>>({});
@@ -101,13 +105,32 @@ function App() {
     const target = sessionId;
     if (!pendingSessions.current.has(target)) {
       apiJSON<{ active_itinerary: TripSnapshot | null; working_draft?: WorkingDraft | null; draft_history: DraftHistoryEntry[]; saved_snapshots: SavedSnapshotEntry[] }>('/api/trips/active?user_id=' + USER + '&session_id=' + encodeURIComponent(target))
-        .then(data => {
-          if (!cancelled && !pendingSessions.current.has(target)) {
-            updateJourney(target, state => ({ ...state, activeTrip: data.active_itinerary, workingDraft: data.working_draft ?? null, draftHistory: data.draft_history ?? [], savedSnapshots: data.saved_snapshots ?? [] }));
-          }
-        }).catch(() => { });
+        .then(data => { if (!cancelled && !pendingSessions.current.has(target)) {
+          updateJourney(target, state => ({ ...state, activeTrip: data.active_itinerary, workingDraft: data.working_draft ?? null, draftHistory: data.draft_history ?? [], savedSnapshots: data.saved_snapshots ?? [] }));
+        } }).catch(() => { });
     }
     return () => { cancelled = true; };
+  }, [sessionId]);
+  // Rehydrate the active conversation after refresh and whenever a prior journey is selected.
+  // The same session ID must survive refresh; otherwise one dialogue becomes many records.
+  useEffect(() => {
+    const target = sessionId;
+    if (pendingSessions.current.has(target) || journeys[target]?.historyLoaded) return;
+    let cancelled = false;
+    apiJSON<{ messages: ChatMessage[] }>(`/api/history?user_id=${USER}&session_id=${encodeURIComponent(target)}`)
+      .then(data => {
+        if (cancelled || pendingSessions.current.has(target)) return;
+        updateJourney(target, state => state.historyLoaded ? state : {
+          ...state, messages: data.messages, historyLoaded: true,
+        });
+      })
+      .catch(() => {
+        if (!cancelled && !pendingSessions.current.has(target))
+          updateJourney(target, state => ({ ...state, error: 'Could not load session history.' }));
+      });
+    return () => { cancelled = true; };
+  // Sessions change only when switching or explicitly starting a new journey.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
   useEffect(() => { load(); }, [load]);
@@ -135,41 +158,31 @@ function App() {
     pendingSessions.current.add(target);
     const controller = new AbortController();
     abortControllers.current.set(target, controller);
-    updateJourney(target, state => ({
-      ...state, historyLoaded: true, messages: [...state.messages, { role: 'user', content: text }],
-      loading: true, stage: 'router', active: [], error: ''
-    }));
+    updateJourney(target, state => ({ ...state, historyLoaded: true, messages: [...state.messages, { role: 'user', content: text }],
+      loading: true, stage: 'router', active: [], error: '' }));
     setDrafts(previous => ({ ...previous, [target]: '' }));
     let completed = false;
     let receivedError = false;
     try {
-      await streamChat({
-        message: text, user_id: USER, session_id: target,
-        context: {}
-      }, (name, value) => {
+      await streamChat({ message: text, user_id: USER, session_id: target,
+        context: {} }, (name, value) => {
         if (name === 'progress') updateJourney(target, state => ({ ...state, stage: (value as { stage?: string }).stage || state.stage }));
         if (name === 'plan') updateJourney(target, state => ({ ...state, active: (value as { skills: string[] }).skills || [] }));
         if (name === 'done') {
-          const result = value as {
-            answer: string; results: SkillResult[]; elapsed_ms: number; planner_mode: string;
+          const result = value as { answer: string; results: SkillResult[]; elapsed_ms: number; planner_mode: string;
             active_itinerary?: TripSnapshot | null; working_draft?: WorkingDraft | null; draft_history?: DraftHistoryEntry[]; saved_snapshots?: SavedSnapshotEntry[]; trip_change?: TripChange | null;
             model_issue?: string | null; model_diagnostic?: { stage?: string; code?: string; detail?: string } | null;
-            execution_trace?: ChatMessage['execution_trace']; planner_limitations?: string[]
-          };
+            execution_trace?: ChatMessage['execution_trace']; planner_limitations?: string[] };
           if (typeof result.answer !== 'string' || !result.answer.trim()) throw new Error('Backend returned an empty assistant response.');
           completed = true;
           const detail = result.model_diagnostic;
           const diagnostic = detail?.code ? `Model diagnostic: ${detail.code}${detail.stage ? ` (${detail.stage})` : ''}${detail.detail ? ` - ${detail.detail}` : ''}` :
             result.model_issue ? `Model diagnostic: ${result.model_issue}` : '';
-          updateJourney(target, state => ({
-            ...state, activeTrip: result.active_itinerary ?? null, workingDraft: result.working_draft ?? null, draftHistory: result.draft_history ?? state.draftHistory, savedSnapshots: result.saved_snapshots ?? state.savedSnapshots,
+          updateJourney(target, state => ({ ...state, activeTrip: result.active_itinerary ?? null, workingDraft: result.working_draft ?? null, draftHistory: result.draft_history ?? state.draftHistory, savedSnapshots: result.saved_snapshots ?? state.savedSnapshots,
             error: diagnostic,
-            messages: [...state.messages, {
-              role: 'assistant', content: result.answer, results: result.results,
+            messages: [...state.messages, { role: 'assistant', content: result.answer, results: result.results,
               elapsed_ms: result.elapsed_ms, planner_mode: result.planner_mode, trip_change: result.trip_change, working_draft: result.working_draft,
-              execution_trace: result.execution_trace, planner_limitations: result.planner_limitations
-            }]
-          }));
+              execution_trace: result.execution_trace, planner_limitations: result.planner_limitations }] }));
           load();
         }
         if (name === 'error') {
@@ -190,7 +203,7 @@ function App() {
   }
   async function getTripVersion(kind: 'saved' | 'draft', version: number, target: string) {
     const url = kind === 'saved' ? `/api/trips/saved/${version}` : `/api/trips/draft/${version}`;
-    return apiJSON<{ itinerary?: unknown }>(`${url}?user_id=${USER}&session_id=${encodeURIComponent(target)}`);
+    return apiJSON<{itinerary?: unknown}>(`${url}?user_id=${USER}&session_id=${encodeURIComponent(target)}`);
   }
   async function loadTripVersionTitle(kind: 'saved' | 'draft', version: number, target: string): Promise<string | null> {
     const data = await getTripVersion(kind, version, target);
@@ -202,9 +215,9 @@ function App() {
     const target = sessionRef.current;
     try {
       const data = await getTripVersion(kind, version, target);
-      if (sessionRef.current === target) setHistoryPreview({ journey: target, label: kind === 'saved' ? `Saved copy #${version}` : `Working draft #${version}`, content: itineraryPreviewText(data.itinerary) });
+      if (sessionRef.current === target) setHistoryPreview({journey: target, label: kind === 'saved' ? `Saved copy #${version}` : `Working draft #${version}`, content: itineraryPreviewText(data.itinerary)});
     } catch (error) {
-      updateJourney(target, previous => ({ ...previous, error: error instanceof Error ? error.message : 'Could not load a saved version.' }));
+      updateJourney(target, previous => ({...previous, error: error instanceof Error ? error.message : 'Could not load a saved version.'}));
     }
   }
   async function saveTrip() {
@@ -214,24 +227,20 @@ function App() {
     pendingSessions.current.add(target);
     updateJourney(target, current => ({ ...current, loading: true, stage: 'saving', error: '' }));
     try {
-      const snapshot = await apiJSON<{ saved_id: number; source_status: string; source_version: number }>(
+      const snapshot = await apiJSON<{saved_id: number; source_status: string; source_version: number}>(
         '/api/trips/save', {
-        method: 'POST',
-        body: JSON.stringify({
-          user_id: USER, session_id: target,
-          expected_verified_version: state.activeTrip?.version ?? 0,
-          expected_draft_version: state.workingDraft?.draft_version ?? 0
-        }),
-      });
+          method: 'POST',
+          body: JSON.stringify({user_id: USER, session_id: target,
+            expected_verified_version: state.activeTrip?.version ?? 0,
+            expected_draft_version: state.workingDraft?.draft_version ?? 0}),
+        });
       const provisional = snapshot.source_status === 'draft';
-      updateJourney(target, prior => ({
-        ...prior, error: '', savedSnapshots: [{ id: snapshot.saved_id, source_status: snapshot.source_status, source_version: snapshot.source_version, saved_at: new Date().toISOString() }, ...prior.savedSnapshots], messages: [...prior.messages, {
-          role: 'assistant',
-          content: `Saved itinerary snapshot #${snapshot.saved_id} (${provisional ? 'provisional working draft' : 'verified itinerary'}). This snapshot is retained while you continue editing.`,
-        }]
-      }));
+      updateJourney(target, prior => ({...prior, error: '', savedSnapshots: [{id: snapshot.saved_id, source_status: snapshot.source_status, source_version: snapshot.source_version, saved_at: new Date().toISOString()}, ...prior.savedSnapshots], messages: [...prior.messages, {
+        role: 'assistant',
+        content: `Saved itinerary snapshot #${snapshot.saved_id} (${provisional ? 'provisional working draft' : 'verified itinerary'}). This snapshot is retained while you continue editing.`,
+      }]}));
     } catch (error) {
-      updateJourney(target, prior => ({ ...prior, error: error instanceof Error ? error.message : 'Unable to save itinerary.' }));
+      updateJourney(target, prior => ({...prior, error: error instanceof Error ? error.message : 'Unable to save itinerary.'}));
     } finally {
       pendingSessions.current.delete(target);
       updateJourney(target, current => ({ ...current, loading: false, stage: '', active: [] }));
@@ -242,32 +251,38 @@ function App() {
     const controller = abortControllers.current.get(target);
     if (!controller || controller.signal.aborted) return;
     controller.abort();
-    updateJourney(target, state => ({
-      ...state, loading: false, stage: '', active: [],
-      error: 'Request cancelled locally. A trip version already saved by the server may still be present; refresh to confirm.'
-    }));
+    updateJourney(target, state => ({ ...state, loading: false, stage: '', active: [],
+      error: 'Request cancelled locally. A trip version already saved by the server may still be present; refresh to confirm.' }));
   }
-  async function switchSession(id: string) {
+  function switchSession(id: string) {
+    if (id === sessionRef.current) { setPage('chat'); return; }
     sessionRef.current = id;
+    rememberSessionId(id);
     setSessionId(id);
     setPage('chat');
-    if (pendingSessions.current.has(id) || journeys[id]?.historyLoaded) return;
-    try {
-      const x = await apiJSON<{ messages: ChatMessage[] }>('/api/history?user_id=' + USER + '&session_id=' + encodeURIComponent(id));
-      if (!pendingSessions.current.has(id))
-        setJourneys(prev => {
-          const state = prev[id] ?? emptyJourney();
-          return state.historyLoaded ? prev : { ...prev, [id]: { ...state, messages: x.messages, historyLoaded: true } };
-        });
-    } catch {
-      updateJourney(id, state => ({ ...state, error: 'Could not load session history.' }));
-    }
   }
   function newSession() {
-    const id = 'session-' + crypto.randomUUID().slice(0, 12);
+    const id = createSessionId();
     sessionRef.current = id;
+    rememberSessionId(id);
     setSessionId(id);
     setPage('chat');
+  }
+  function exportConversation(format: 'html' | 'pdf') {
+    if (!messages.length) return;
+    try {
+      const trip = workingDraft?.itinerary ?? activeTrip?.itinerary;
+      const documentTitle = trip?.title || 'Travel conversation';
+      const html = buildConversationHtml({
+        title: documentTitle,
+        messages,
+        status: workingDraft ? 'Working draft' : activeTrip ? 'Itinerary available' : 'Conversation',
+      });
+      if (format === 'html') downloadConversationHtml(html, documentTitle);
+      else printConversationPdf(html);
+    } catch (exception) {
+      updateJourney(sessionRef.current, state => ({ ...state, error: exception instanceof Error ? exception.message : 'Could not export conversation.' }));
+    }
   }
   async function savePreference() {
     if (!prefValue.trim() || !consent) return;
@@ -279,7 +294,7 @@ function App() {
   }
   return <div className="app-shell">
     <aside className={'sidebar' + (collapsed ? ' collapsed' : '')}>
-      <div className="identity"><div className="logo"><Compass size={23} /></div>{!collapsed && <div className="brand-copy"><strong className="brand-wordmark">PoreiaGo</strong><BrandTagline entry={brandTagline} placement="sidebar" /></div>}</div>
+      <div className="identity"><div className="logo"><Compass size={23} /></div>{!collapsed && <div className="brand-copy"><strong>PoreiaGo</strong><BrandTagline entry={brandTagline} placement="sidebar" /></div>}</div>
       <button className="primary action-new" onClick={newSession}><Plus size={18} />{!collapsed && 'New journey'}</button>
       {!collapsed && <div className="nav-label">WORKSPACE</div>}
       <nav>{([{ page: 'chat', label: 'Travel assistant', icon: MessageCircle }, { page: 'skills', label: 'Skill catalog', icon: Layers3 }, { page: 'memory', label: 'Memory & preferences', icon: BrainCircuit }, { page: 'knowledge', label: 'Knowledge sources', icon: BookOpen }, { page: 'settings', label: 'Models & providers', icon: Settings2 }] as const).map(item => <button key={item.page} onClick={() => setPage(item.page)} className={'nav-item' + (page === item.page ? ' selected' : '')}><item.icon size={18} />{!collapsed && <span>{item.label}</span>}{item.page === 'skills' && !collapsed && <b>{skills.length}</b>}</button>)}</nav>
@@ -293,17 +308,18 @@ function App() {
       <header className="topbar">
         <div className="top-left">
           <button className="icon-button" aria-label="Toggle sidebar" onClick={() => setCollapsed(!collapsed)}><Menu size={20} /></button>
-          <span className="topbar-nav-trail"><span className="brand-wordmark brand-wordmark--compact">PoreiaGo</span><ArrowRight size={13} aria-hidden="true" /></span>
+          <span className="topbar-nav-trail"><span>PoreiaGo</span><ArrowRight size={13} aria-hidden="true" /></span>
           {page === 'chat'
             ? (workingDraft || activeTrip)
               ? <CurrentTripTitle activeTrip={activeTrip} workingDraft={workingDraft} />
               : <span className="topbar-empty-trip">New journey</span>
             : <span className="topbar-page-summary" aria-label={`Current page: ${page}`}>
-              <strong>{({ chat: 'Assistant', skills: 'Skill catalog', memory: 'Memory & preferences', knowledge: 'Knowledge sources', settings: 'Models & providers' })[page]}</strong>
-            </span>}
+                <strong>{({ chat: 'Assistant', skills: 'Skill catalog', memory: 'Memory & preferences', knowledge: 'Knowledge sources', settings: 'Models & providers' })[page]}</strong>
+              </span>}
         </div>
         <div className="right-tools">
           {page === 'chat' && <TopbarTripControls activeTrip={activeTrip} workingDraft={workingDraft} draftHistory={draftHistory} savedSnapshots={savedSnapshots} historyPreview={historyPreview} sessionId={sessionId} loading={loading} onSave={saveTrip} onPreview={previewTripVersion} onLoadTitle={loadTripVersionTitle} />}
+          {page === 'chat' && <ExportMenu disabled={!messages.length} onExport={exportConversation} />}
           <button className="icon-button" onClick={load} aria-label="Refresh status"><RefreshCw size={17} /></button>
           <button className="icon-button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme">{theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}</button>
         </div>

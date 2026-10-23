@@ -8,15 +8,17 @@ const { renderToStaticMarkup } = require('react-dom/server');
 for (const extension of ['.ts', '.tsx']) {
   require.extensions[extension] = (module, filename) => {
     const source = fs.readFileSync(filename, 'utf8');
-    const code = ts.transpileModule(source, { compilerOptions: {
-      jsx: ts.JsxEmit.ReactJSX,
-      target: ts.ScriptTarget.ES2022,
-      module: ts.ModuleKind.CommonJS,
-    } }).outputText;
+    const code = ts.transpileModule(source, {
+      compilerOptions: {
+        jsx: ts.JsxEmit.ReactJSX,
+        target: ts.ScriptTarget.ES2022,
+        module: ts.ModuleKind.CommonJS,
+      }
+    }).outputText;
     module._compile(code, filename);
   };
 }
-require.extensions['.css'] = () => {};
+require.extensions['.css'] = () => { };
 
 const { FormattedAnswer } = require('../src/FormattedAnswer.tsx');
 const userMessage = [

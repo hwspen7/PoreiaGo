@@ -34,18 +34,18 @@ test('non-activity prose and metadata cannot be mistaken for timed activities', 
   assert.equal(parseItineraryActivity('Budget: moderate'), null);
   assert.equal(parseItineraryActivity('- A list item without a time'), null);
   assert.equal(parseItineraryActivity('25:90: Invalid time'), null);
-  assert.deepEqual(parseDayMetadata('Overnight base: Dongcheng District'), {label:'Overnight base', value:'Dongcheng District'});
+  assert.deepEqual(parseDayMetadata('Overnight base: Dongcheng District'), { label: 'Overnight base', value: 'Dongcheng District' });
 });
 
 test('pipe-separated Why, Transfer, Check, Duration and costs become individual facts', () => {
   const original = "Why: A quintessential Qingdao experience. | Transfer: Short taxi ride from Badaguan. | Check: Check for temporary closures. | Allow about 75 minutes | Cost level: free (indicative) | Estimated cost: Free entry (unverified)";
   assert.deepEqual(parseItineraryFacts(original), [
-    {label:'Why', value:'A quintessential Qingdao experience.'},
-    {label:'Transfer', value:'Short taxi ride from Badaguan.'},
-    {label:'Check', value:'Check for temporary closures.'},
-    {label:'Duration', value:'About 75 minutes'},
-    {label:'Cost level', value:'free'},
-    {label:'Estimated cost', value:'Free entry'},
+    { label: 'Why', value: 'A quintessential Qingdao experience.' },
+    { label: 'Transfer', value: 'Short taxi ride from Badaguan.' },
+    { label: 'Check', value: 'Check for temporary closures.' },
+    { label: 'Duration', value: 'About 75 minutes' },
+    { label: 'Cost level', value: 'free' },
+    { label: 'Estimated cost', value: 'Free entry' },
   ]);
   assert.match(original, /\(unverified\)/);
 });
