@@ -3,7 +3,7 @@ from .trip_state import validate_itinerary
 from .validation_gate import validate_for_commit, ItineraryGateError, unresolved_schedule_fields
 
 
-def review_draft(document, *, previous=None, intent=None):
+def review_draft(document, *, previous=None, intent=None, protected_constraints=None, constraint_intents=None):
     candidate = validate_itinerary(document, operation='create')
     issues = []
     # A model's verified label has no evidentiary authority. Revoke it before
@@ -41,7 +41,8 @@ def review_draft(document, *, previous=None, intent=None):
             issues.append({'code': 'DRAFT_CLOCKS_UNSPECIFIED', 'day': day['day'],
                            'detail': 'Start times are approximate dayparts; exact scheduling remains unresolved.'})
     try:
-        validate_for_commit(candidate, previous=previous, intent=intent)
+        validate_for_commit(candidate, previous=previous, intent=intent, protected_constraints=protected_constraints,
+                            constraint_intents=constraint_intents)
     except ItineraryGateError as exc:
         issues.extend(issue.as_dict() for issue in exc.issues)
     issues.extend(issue.as_dict() for issue in unresolved_schedule_fields(candidate))

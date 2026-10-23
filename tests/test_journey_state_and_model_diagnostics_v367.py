@@ -1,5 +1,6 @@
 """Regression checks for session isolation and diagnostic model failures."""
 import json
+import re
 from dataclasses import replace
 from pathlib import Path
 
@@ -89,7 +90,8 @@ def test_frontend_scopes_pending_state_to_session():
     # against a future accidental regression to global load/message state.
     text = (Path(__file__).resolve().parents[1] / 'web/src/main.tsx').read_text(encoding='utf-8')
     assert 'pendingSessions.current.has(target)' in text
-    assert 'updateJourney(target, state =>' in text
+    # Both forms are valid TypeScript; formatting tools may add arrow-parameter parentheses.
+    assert re.search(r'\bupdateJourney\s*\(\s*target\s*,\s*(?:state|\(\s*state\s*\))\s*=>', text)
     assert 'const messages = selected?.messages ?? []' in text
     assert 'const loading = selected?.loading ?? false' in text
     assert 'sessionRef.current = id' in text

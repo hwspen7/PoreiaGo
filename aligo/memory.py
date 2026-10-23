@@ -83,6 +83,11 @@ class MemoryStore:
                     updated_at TEXT NOT NULL,
                     PRIMARY KEY (user_id, session_id, requirement_key)
                 );
+                CREATE TABLE IF NOT EXISTS working_constraint_intents (
+                    user_id TEXT NOT NULL, session_id TEXT NOT NULL,
+                    draft_version INTEGER NOT NULL, payload TEXT NOT NULL,
+                    PRIMARY KEY(user_id,session_id,draft_version)
+                );
                 CREATE TABLE IF NOT EXISTS documents (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id TEXT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL,
@@ -154,35 +159,35 @@ class MemoryStore:
 
     def remember_journey_constraints(self, user_id, session_id, intent, document):
         """Record a user requirement only when a real activity fulfills it."""
-        from .journey_constraints import requirements_from_intent
-        requirements = requirements_from_intent(intent, document)
-        removing = str((intent or {}).get('remove_place') or '').casefold().strip()
-        if not requirements and not removing:
+        from .journey_constraints import reconcile_requirements
+        if not isinstance(intent, dict):
             return
         now = datetime.now(timezone.utc).isoformat()
         with self._lock, self._connection:
-            if removing:
-                from .journey_constraints import _matching_place
-                rows = self._connection.execute(
-                    'SELECT requirement_key,payload FROM journey_constraints '
-                    'WHERE user_id=? AND session_id=?', (user_id, session_id)).fetchall()
-                for row in rows:
-                    constraint = json.loads(row['payload'])
-                    if constraint.get('kind') != 'anchor':
-                        continue
-                    place = str(constraint.get('place') or '').casefold().strip()
-                    if (place and (place == removing or place in removing or removing in place)
-                            and not any(_matching_place(a, place)
-                                for d in document.get('days', []) for a in d.get('activities', []))):
-                        self._connection.execute(
-                            'DELETE FROM journey_constraints WHERE user_id=? '
-                            'AND session_id=? AND requirement_key=?',
-                            (user_id, session_id, row['requirement_key']))
-            for requirement in requirements:
+            rows = self._connection.execute(
+                'SELECT payload FROM journey_constraints WHERE user_id=? AND session_id=?',
+                (user_id, session_id)).fetchall()
+            existing = [json.loads(row['payload']) for row in rows]
+            updated = reconcile_requirements(existing, [intent], document)
+            self._connection.execute(
+                'DELETE FROM journey_constraints WHERE user_id=? AND session_id=?',
+                (user_id, session_id))
+            for requirement in updated:
                 self._connection.execute(
-                    'INSERT OR REPLACE INTO journey_constraints VALUES(?,?,?,?,?)',
+                    'INSERT INTO journey_constraints VALUES(?,?,?,?,?)',
                     (user_id, session_id, requirement['key'],
                      json.dumps(requirement, ensure_ascii=False), now))
+
+    def _pending_constraint_intents(self, user_id, session_id, draft_version):
+        if not draft_version:
+            return []
+        with self._lock:
+            row = self._connection.execute(
+                'SELECT payload FROM working_constraint_intents '
+                'WHERE user_id=? AND session_id=? AND draft_version=?',
+                (user_id, session_id, draft_version)).fetchone()
+        result = json.loads(row['payload']) if row else []
+        return [intent for intent in result if isinstance(intent, dict)]
 
     def save_working_itinerary(self, user_id, session_id, document, *,
                                base_version, expected_draft_version=0, issues=None,
@@ -194,8 +199,22 @@ class MemoryStore:
         """
         from .trip_state import validate_itinerary
         from .working_drafts import review_draft
+        prior_intents = self._pending_constraint_intents(user_id, session_id,
+                                                         expected_draft_version)
+        from .journey_constraints import compact_intents
+        pending_intents = compact_intents(prior_intents + ([intent] if isinstance(intent, dict) and any(
+            intent.get(name) is not None for name in
+            ('anchor_place', 'early_topic', 'not_before_minute', 'remove_place')) else []))
         candidate, current_issues = review_draft(
-            document, previous=previous, intent=intent)
+            document, previous=previous, intent=intent,
+            protected_constraints=self.journey_constraints(user_id, session_id),
+            constraint_intents=pending_intents)
+        from .validation_gate import _intent_issues
+        accepted = self.active_itinerary(user_id, session_id)
+        baseline = accepted['itinerary'] if accepted else None
+        for pending in pending_intents:
+            current_issues.extend(issue.as_dict() for issue in
+                                  _intent_issues(candidate, baseline, pending))
         issues = current_issues + (issues if isinstance(issues, list) else [])
         if not isinstance(issues, list):
             issues = []
@@ -238,6 +257,10 @@ class MemoryStore:
                 (user_id, session_id, new_version, base_version,
                  json.dumps(candidate, ensure_ascii=False),
                  json.dumps(clean_issues, ensure_ascii=False, default=str), now))
+            self._connection.execute(
+                'INSERT INTO working_constraint_intents VALUES(?,?,?,?)',
+                (user_id, session_id, new_version,
+                 json.dumps(pending_intents, ensure_ascii=False)))
         return {'draft_version': new_version, 'base_version': base_version,
                 'itinerary': candidate, 'issues': clean_issues,
                 'updated_at': now, 'status': 'draft'}
@@ -346,7 +369,17 @@ class MemoryStore:
             if not active:
                 raise ValueError('There is no itinerary to save.')
             return {'active_itinerary': active, 'working_draft': None, 'saved_status': 'validated'}
-        candidate, issues = review_draft(draft['itinerary'])
+        pending_intents = self._pending_constraint_intents(
+            user_id, session_id, draft['draft_version'])
+        candidate, issues = review_draft(
+            draft['itinerary'],
+            protected_constraints=self.journey_constraints(user_id, session_id),
+            constraint_intents=pending_intents)
+        from .validation_gate import _intent_issues
+        for pending in pending_intents:
+            issues.extend(issue.as_dict() for issue in
+                          _intent_issues(candidate, active['itinerary'] if active else None,
+                                         pending))
         # Saving is not a new edit and cannot resolve an earlier unmet request.
         issues.extend(draft.get('issues') or [])
         if issues:
@@ -355,7 +388,8 @@ class MemoryStore:
             return {'active_itinerary': active, 'working_draft': saved, 'saved_status': 'draft'}
         active = self.save_itinerary(user_id, session_id, candidate,
             expected_version=expected_version, expected_draft_version=expected_draft_version,
-            operation='revise' if active else 'create')
+            operation='revise' if active else 'create',
+            constraint_intents=pending_intents)
         return {'active_itinerary': active, 'working_draft': None, 'saved_status': 'validated'}
 
     def clear_working_itinerary(self, user_id, session_id):
@@ -364,7 +398,8 @@ class MemoryStore:
                                      'WHERE user_id=? AND session_id=?', (user_id, session_id))
 
     def save_itinerary(self, user_id, session_id, document, *, expected_version=0,
-                       operation=None, intent=None, trusted_sources=None, expected_draft_version=None):
+                       operation=None, intent=None, trusted_sources=None, expected_draft_version=None,
+                       constraint_intents=None):
         """The last, atomic pre-commit guard for every itinerary write path.
 
         Recheck the exact current row inside the same SQLite transaction, so
@@ -402,9 +437,26 @@ class MemoryStore:
             document = validate_itinerary(
                 document, previous=prior,
                 operation='snapshot' if effective == 'revise' else 'create')
+            from .journey_constraints import reconcile_requirements
+            rows = self._connection.execute(
+                'SELECT payload FROM journey_constraints WHERE user_id=? AND session_id=?',
+                (user_id, session_id)).fetchall()
+            protected = ([json.loads(row['payload']) for row in rows]
+                         if effective == 'revise' else [])
+            staged = [entry for entry in (constraint_intents or []) if isinstance(entry, dict)]
             document = validate_for_commit(
                 document, previous=intent_previous if effective == 'revise' else None,
-                intent=intent, trusted_sources=trusted_sources)
+                intent=intent, trusted_sources=trusted_sources,
+                protected_constraints=protected, constraint_intents=staged)
+            # Evaluate every persisted draft request against the accepted base.
+            # A clean later draft must not silently discard an earlier request.
+            for pending in staged:
+                validate_for_commit(document, previous=prior, intent=pending,
+                                    protected_constraints=protected,
+                                    constraint_intents=staged)
+            next_constraints = reconcile_requirements(
+                protected, staged + ([intent] if isinstance(intent, dict) else []),
+                document, previous=prior)
             serialized = json.dumps(document, ensure_ascii=False)
             new_version = current + 1
             self._connection.execute(
@@ -416,7 +468,23 @@ class MemoryStore:
             self._connection.execute(
                 'DELETE FROM working_itineraries WHERE user_id=? AND session_id=?',
                 (user_id, session_id))
+            self._connection.execute(
+                'DELETE FROM journey_constraints WHERE user_id=? AND session_id=?',
+                (user_id, session_id))
+            for requirement in next_constraints:
+                self._connection.execute(
+                    'INSERT INTO journey_constraints VALUES(?,?,?,?,?)',
+                    (user_id, session_id, requirement['key'],
+                     json.dumps(requirement, ensure_ascii=False), now))
         return {'version': new_version, 'itinerary': document, 'updated_at': now}
+
+    def restore_itinerary_version(self, user_id, session_id, version, *, expected_version):
+        """Restore an accepted snapshot as a NEW version, never bypassing constraints."""
+        snapshot = self.itinerary_version_document(user_id, session_id, version)
+        if snapshot is None:
+            raise ValueError('Requested itinerary version does not exist in this session.')
+        return self.save_itinerary(user_id, session_id, snapshot,
+                                   expected_version=expected_version, operation='revise')
 
     def record_revision_diagnostic(self, user_id, session_id, *, baseline_version,
                                    stage, details):
@@ -458,31 +526,38 @@ class MemoryStore:
             self._connection.execute('INSERT INTO messages(user_id,session_id,role,content,created_at) VALUES(?,?,?,?,?)', (user_id, session_id, role, content, datetime.now(timezone.utc).isoformat()))
 
     def messages(self, user_id, session_id, limit=40):
-        # The model uses a limited context window; the conversation UI needs
-        # full history after refresh to avoid silently omitting earlier turns.
-        sql = ('SELECT role,content,created_at FROM messages '
-               'WHERE user_id=? AND session_id=? ORDER BY id DESC')
-        params = (user_id, session_id)
-        if limit is not None:
-            sql += ' LIMIT ?'
-            params = (*params, max(0, int(limit)))
+        # The UI needs the complete session after refresh, while the model
+        # context continues to use the caller-selected, bounded history.
         with self._lock:
-            rows = self._connection.execute(sql, params).fetchall()
+            query = ('SELECT role, content, created_at FROM messages '
+                     'WHERE user_id=? AND session_id=? ORDER BY id DESC')
+            parameters = (user_id, session_id)
+            if limit is not None:
+                query += ' LIMIT ?'
+                parameters += (max(0, int(limit)),)
+            rows = self._connection.execute(query, parameters).fetchall()
         return [dict(row) for row in reversed(rows)]
 
     def sessions(self, user_id):
+        # A journey's preview is the FIRST user message, not the smallest
+        # alphabetically or the latest message sent to that conversation.
         with self._lock:
-            rows=self._connection.execute('''
+            rows = self._connection.execute('''
                 SELECT m.session_id,
-                    (SELECT first_user.content FROM messages AS first_user
-                     WHERE first_user.user_id=m.user_id
-                       AND first_user.session_id=m.session_id AND first_user.role='user'
-                     ORDER BY first_user.id ASC LIMIT 1) AS preview,
-                    MAX(m.id) AS last_id
-                FROM messages AS m WHERE m.user_id=?
-                GROUP BY m.session_id ORDER BY last_id DESC LIMIT 100
-            ''',(user_id,)).fetchall()
-        return [{'session_id':row['session_id'],'preview':(row['preview'] or 'New trip')[:65]} for row in rows]
+                       (SELECT first.content FROM messages AS first
+                        WHERE first.user_id = m.user_id
+                          AND first.session_id = m.session_id
+                          AND first.role = 'user'
+                        ORDER BY first.id ASC LIMIT 1) AS preview,
+                       MAX(m.id) AS last_id
+                FROM messages AS m
+                WHERE m.user_id = ?
+                GROUP BY m.session_id
+                ORDER BY last_id DESC
+                LIMIT 100
+            ''', (user_id,)).fetchall()
+        return [{'session_id': row['session_id'],
+                 'preview': (row['preview'] or 'New trip')[:65]} for row in rows]
 
     def search_history(self,user_id,query,limit=8):
         terms=[w.lower() for w in query.split() if len(w)>2][:10]
@@ -547,7 +622,7 @@ class MemoryStore:
 
     def delete_user(self,user_id):
         with self._lock,self._connection:
-            for table in ('rag_vectors','rag_chunks','messages','preferences','documents','expenses','trips','active_itineraries','itinerary_versions','revision_diagnostics','working_itineraries','working_itinerary_versions','saved_trip_snapshots','journey_constraints'):
+            for table in ('rag_vectors','rag_chunks','messages','preferences','documents','expenses','trips','active_itineraries','itinerary_versions','revision_diagnostics','working_itineraries','working_itinerary_versions','saved_trip_snapshots','journey_constraints','working_constraint_intents'):
                 if table.startswith('rag_') and not self._connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",(table,)).fetchone():
                     continue
                 self._connection.execute(f'DELETE FROM {table} WHERE user_id=?',(user_id,))

@@ -572,7 +572,8 @@ class Runtime:
                         self.models, baseline, query,
                         explicit_day=self._requested_day(query, baseline),
                         fields=fields, preferences=preferences, evidence=evidence,
-                        timeout=max(self.settings.intent_timeout, 65.))
+                        timeout=max(self.settings.intent_timeout, 65.),
+                        protected_constraints=fields.get('protected_journey_constraints'))
                     used_incremental_revision = True
                 else:
                     duration = fields.get('days') if operation == 'create' else None
@@ -669,7 +670,8 @@ class Runtime:
                 intent=explicit_revision_intent(
                     query, target_days=([self._requested_day(query, baseline)]
                                         if self._requested_day(query, baseline) is not None else None)
-                ) if operation == 'revise' else None)
+                ) if operation == 'revise' else None,
+                protected_constraints=fields.get('protected_journey_constraints'))
         except ItineraryGateError as rejection:
             rejection.draft_candidate = updated
             if operation != 'create':
@@ -793,6 +795,7 @@ class Runtime:
         explicit = context or {}
         fields = self._context(query, history, explicit)
         preferences = self.store.preferences(user_id, session_id)
+        protected_constraints = self.store.journey_constraints(user_id, session_id)
         verified_previous = self.store.active_itinerary(user_id, session_id)
         working_previous = self.store.working_itinerary(user_id, session_id)
         if working_previous and (verified_previous is None or
@@ -914,7 +917,8 @@ class Runtime:
                         await on_event('progress', {'stage': 'itinerary_generation'})
                     itinerary, change, answer = await self._prepare_trip_update(
                         query, history, previous, legacy_text, frame, direct_answer,
-                        results, preferences, frame.fields)
+                        results, preferences, {**frame.fields,
+                            'protected_journey_constraints': protected_constraints})
                     # Complete the diagnostic quality audit before committing.
                     # Its soft scores are not hard constraints; the shared
                     # validation gate independently enforces hard invariants.
@@ -972,7 +976,9 @@ class Runtime:
                                     base_version=verified_previous['version'] if verified_previous else 0,
                                     expected_draft_version=(working_previous['draft_version']
                                                             if working_previous else 0),
-                                    issues=draft_issues)
+                                    issues=draft_issues,
+                                    previous=previous['itinerary'] if previous else None,
+                                    intent=explicit_revision_intent(query) if previous else None)
                         except (TripValidationError, ValueError, TypeError, KeyError):
                             draft_saved = None
                     if draft_saved:

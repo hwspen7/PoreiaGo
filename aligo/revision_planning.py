@@ -15,7 +15,7 @@ from copy import deepcopy
 from .models import ModelUnavailable
 from .trip_state import TripValidationError, validate_itinerary
 from .activity_revision import ACTIVITY_PATCH_SYSTEM, activity_patch_schema, merge_activity_patch
-from .validation_gate import validate_for_commit, explicit_revision_intent
+from .validation_gate import validate_for_commit, explicit_revision_intent, ItineraryGateError
 from .time_contract import normalized_clock_activity, activity_start
 
 
@@ -65,6 +65,13 @@ def day_schema(day_number: int) -> dict:
             'verification_needed': {'type': 'string'},
             'place_name': {'type': 'string'},
             'venue_category': {'type': 'string'},
+            'area': {'type': 'string'},
+            'activity_type': {'type': 'string'},
+            'meal_type': {'type': 'string'},
+            'transfer_minutes': {'type': 'integer'},
+            'buffer_minutes': {'type': 'integer'},
+            'booking_advice': {'type': 'string'},
+            'cost_level': {'type': 'string'},
         },
         'required': ['description'],
         'additionalProperties': False,
@@ -196,7 +203,7 @@ def _replacement_day(candidate: object, target: int) -> dict:
 async def generate_revision(models, baseline: dict, query: str, *,
                             explicit_day: int | None, fields: dict,
                             preferences: dict, evidence: list,
-                            timeout: float) -> dict:
+                            timeout: float, protected_constraints=None) -> dict:
     """Generate candidate revision atomically without touching the persistent store.
 
     One model call per edited day, with a fresh token allowance. On an invalid
@@ -237,7 +244,8 @@ async def generate_revision(models, baseline: dict, query: str, *,
                     models, result, baseline, query, day_number=day_number,
                     fields=fields, preferences=preferences, evidence=evidence,
                     timeout=timeout, enforce_intent=len(targets) == 1,
-                    defer_global=len(targets) > 1)
+                    defer_global=len(targets) > 1,
+                    protected_constraints=protected_constraints)
             except TripValidationError as exc:
                 if getattr(exc, 'draft_candidate', None) is None and result != baseline:
                     exc.draft_candidate = result
@@ -299,15 +307,64 @@ async def generate_revision(models, baseline: dict, query: str, *,
         result = clear_inherited_stale_references(result, baseline)
         try:
             validate_for_commit(result, previous=baseline,
-                                intent=explicit_revision_intent(query))
+                                intent=explicit_revision_intent(query),
+                                protected_constraints=protected_constraints)
         except TripValidationError as exc:
             exc.draft_candidate = result
             raise
     return result
 
 
+async def _recover_entire_day(models, result, baseline, query, *, day_number,
+                              fields, preferences, timeout, prior_error,
+                              intent, enforce_intent, protected_constraints=None):
+    """One bounded full-day replan after a delta cannot resolve a real conflict.
+
+    A daypart-only baseline provides no valid gaps to insert into. Replacing
+    just the affected day can supply a complete schedule without silently
+    changing the destination or other days. This is a model proposal, not a
+    server-authored guess at opening times or journeys.
+    """
+    from .revision_consistency import clear_inherited_stale_references
+    prompt = {
+        'request': query,
+        'day_to_edit': result['days'][day_number - 1],
+        'destination': baseline['destination'],
+        'other_days_index': [row for row in _day_index(baseline)
+                             if row['day'] != day_number],
+        'saved_preferences': preferences,
+        'protected_requirements': fields.get('protected_journey_constraints', []),
+        'observable_revision_constraints': intent,
+        'prior_failure': prior_error[:850],
+        'instruction': (
+            'Return a complete replacement for this ONE day. Give every stop '
+            'a practical HH:MM start and integer duration, preserve important '
+            'existing visits and explicit traveler time anchors, and fulfill '
+            'the new request with real activities. Reduce or replace '
+            'lower-priority stops only when needed. Include enough time '
+            'between physically distinct venues. Treat times as proposals, '
+            'not verified opening hours; never invent external evidence.'),
+        'output_language': fields.get('output_language', 'auto'),
+    }
+    raw = await asyncio.wait_for(models.complete_revision_day(
+        REVISION_DAY_SYSTEM, json.dumps(prompt, ensure_ascii=False, default=str),
+        day_number=day_number, response_schema=day_schema(day_number),
+        compact=False), timeout=timeout)
+    replacement = _replacement_day(raw, day_number)
+    proposal = validate_itinerary({'changes': [replacement]}, previous=result,
+                                  operation='revise')
+    proposal = clear_inherited_stale_references(proposal, baseline)
+    if enforce_intent:
+        validate_for_commit(proposal, previous=baseline, intent=intent,
+                            protected_constraints=protected_constraints)
+    else:
+        validate_for_commit(proposal, protected_constraints=protected_constraints)
+    return proposal
+
+
 async def _generate_activity_patch(models, result, baseline, query, *, day_number,
-                                   fields, preferences, evidence, timeout, enforce_intent=False, defer_global=False):
+                                   fields, preferences, evidence, timeout, enforce_intent=False,
+                                   defer_global=False, protected_constraints=None):
     """Use a compact activity delta; retry only bounded recoverable outputs."""
     original = baseline['days'][day_number - 1]
     indexed = [{'position': index, 'description': row['description'],
@@ -339,6 +396,7 @@ async def _generate_activity_patch(models, result, baseline, query, *, day_numbe
         'skill_evidence': evidence[:3],
         'output_language': fields.get('output_language', 'auto'),
         'observable_revision_constraints': observable_intent,
+        'protected_journey_constraints': protected_constraints or [],
         'activity_edit_contract': {
             'indices': 'All positions refer to the ORIGINAL activity list (one-based).',
             'new_activity_required': ['description', 'start_time', 'duration_minutes'],
@@ -448,7 +506,8 @@ async def _generate_activity_patch(models, result, baseline, query, *, day_numbe
                                            not_before_minute=observable_intent.get('not_before_minute'))
             if enforce_intent:
                 validate_for_commit(revised, previous=baseline,
-                                    intent=observable_intent)
+                                    intent=observable_intent,
+                                    protected_constraints=protected_constraints)
             return revised
         except (ModelUnavailable, TripValidationError, asyncio.TimeoutError) as exc:
             previous_issue = str(exc)
@@ -513,6 +572,34 @@ async def _generate_activity_patch(models, result, baseline, query, *, day_numbe
                         failure.draft_candidate = latest_editable_candidate
                     raise failure from exc
             elif attempt == attempt_limit - 1:
+                # Partial deltas cannot repair missing clocks in the baseline
+                # reliably. Use one whole-day proposal before rejecting a
+                # requested semantic or schedule change. A malformed patch
+                # alone is not a reason to regenerate unrelated days.
+                recoverable_error = any(token in previous_issue for token in (
+                    'SCHEDULE_INVARIANT', 'ACTIVITY_TIME_ORDER',
+                    'PHYSICAL_HANDOFF_TOO_SHORT', 'REVISION_ACTIVITY_TIME_CONFLICT',
+                    'REVISION_TOPIC_REQUIREMENT_NOT_MET',
+                    'REVISION_ADDITION_NOT_MET', 'REVISION_EARLY_TOPIC_NOT_MET',
+                    'REVISION_ANCHORED_VISIT_NOT_MET', 'REVISION_PACE_NOT_IMPROVED',
+                    'REVISION_TIME_REQUIREMENT_NOT_MET'))
+                has_unknown_clocks = bool(context['schedule_context']['unknown_interval_positions'])
+                if callable(getattr(models, 'complete_revision_day', None)) and (
+                        recoverable_error or has_unknown_clocks):
+                    try:
+                        return await _recover_entire_day(
+                            models, result, baseline, query, day_number=day_number,
+                            fields=fields, preferences=preferences,
+                            timeout=timeout, prior_error=previous_issue,
+                            intent=observable_intent, enforce_intent=enforce_intent,
+                            protected_constraints=protected_constraints)
+                    except (ModelUnavailable, TripValidationError, asyncio.TimeoutError) as day_exc:
+                        attempt_history.append({'day': day_number,
+                                                'fallback': 'full_day',
+                                                'error': str(day_exc)[:900]})
+                        if isinstance(day_exc, ItineraryGateError):
+                            exc = day_exc
+                        previous_issue += ' | full_day: ' + str(day_exc)[:250]
                 failure = TripValidationError(
                     f'REVISION_PATCH_INVALID:day={day_number}:{previous_issue[:550]}')
                 failure.revision_attempts = attempt_history[-attempt_limit:]

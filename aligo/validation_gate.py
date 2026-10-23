@@ -72,6 +72,9 @@ def _interval_issues(day: dict, *, strict_timing: bool = False) -> list[GateIssu
         issues.append(GateIssue('SCHEDULE_INVARIANT', number, detail=problem))
     for activity_index, detail in cross_area_zero_gap_issues(day):
         issues.append(GateIssue('CROSS_AREA_TRANSFER_NO_GAP', number, activity_index, detail))
+    from .schedule_integrity import visible_handoff_issues
+    for activity_index, detail in visible_handoff_issues(day):
+        issues.append(GateIssue('PHYSICAL_HANDOFF_TOO_SHORT', number, activity_index, detail))
     for problem in core_day_issues(day):
         if problem['code'] == 'cost_basis_conflict':
             issues.append(GateIssue('COST_BASIS_CONFLICT', number,
@@ -334,6 +337,13 @@ def explicit_revision_intent(request: str, *, target_days: list[int] | None = No
             result['anchor_place'] = anchor.group(1).strip()
             result['anchor_minute'] = parsed[0]
             result['anchor_tolerance_minutes'] = 30 if anchor.group(2).lower() != 'at' else 0
+    removal = re.search(
+        r'\b(?:remove|delete|drop|skip|exclude|cancel)\s+(?:the\s+)?'
+        r'(.+?)(?:\s+from\s+(?:my\s+|the\s+|this\s+)?'
+        r'(?:trip|plan|schedule|itinerary)|[.!?]|$)', text, re.I)
+    if removal:
+        result['remove_place'] = removal.group(1).strip()[:120]
+        result['requires_activity_change'] = True
     replacing = re.search(r'\breplace\s+(?:one|a|the|some)?\s*([a-z][a-z-]{2,30})\s+with\b', text, re.I)
     if replacing:
         result['requires_activity_change'] = True
@@ -411,7 +421,9 @@ def _cross_day_revision_issues(document: dict, previous: dict | None,
 def validate_for_commit(document: dict, *, previous: dict | None = None,
                         intent: dict | None = None,
                         trusted_sources: dict[str, dict] | None = None,
-                        strict_timing: bool = False) -> dict:
+                        strict_timing: bool = False,
+                        
+                 protected_constraints=None, constraint_intents=None) -> dict:
     """Fail closed before saving. Does not mutate the caller's document."""
     from .trip_state import validate_itinerary
     # Validate shape once even when a caller bypasses the normal planner.
@@ -442,6 +454,10 @@ def validate_for_commit(document: dict, *, previous: dict | None = None,
         issues.append(GateIssue('STALE_REVISION_REFERENCE', day_number, activity_index,
                                 'Outdated routing or summary field: ' + field))
     issues.extend(_intent_issues(normalized, previous, intent))
+    from .journey_constraints import unresolved_requirements
+    for entry in unresolved_requirements(normalized, protected_constraints, intent,
+                                         superseding_intents=constraint_intents):
+        issues.append(GateIssue(entry['code'], detail=entry['detail']))
     if issues:
         raise ItineraryGateError(issues)
     return normalized
