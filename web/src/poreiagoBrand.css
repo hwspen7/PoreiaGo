@@ -1,0 +1,75 @@
+/* Original PoreiaGo artwork, scaled without altering the surrounding UI. */
+.sidebar .identity {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 6px;
+  min-height: 56px;
+}
+.sidebar .identity .poreiago-mark-wrap {
+  flex: 0 0 45px;
+  width: 45px;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sidebar .identity .poreiago-symbol {
+  display: block;
+  width: 45px;
+  height: 45px;
+  object-fit: contain;
+}
+.sidebar .identity .poreiago-brand-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 0;
+  height: 56px;
+  gap: 4px;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: left;
+}
+.sidebar .identity .poreiago-wordmark {
+  display: block;
+  flex: 0 0 auto;
+  width: 100%;
+  height: 25px;
+  max-height: 25px;
+  object-fit: contain;
+  object-position: left center;
+}
+/* Keep the existing rotating, multi-language tagline visible below the wordmark. */
+.sidebar .identity .poreiago-brand-copy .brand-tagline {
+  margin-top: 0;
+  font-size: 12px;
+  text-align: left;
+}
+.sidebar.collapsed .identity {
+  padding: 0;
+  justify-content: center;
+}
+.sidebar.collapsed .identity .poreiago-brand-copy {
+  display: none;
+}
+.welcome .poreiago-welcome-icon {
+  border: 1px solid #396d60;
+  background: var(--accentDim);
+  overflow: hidden;
+}
+.welcome .poreiago-welcome-icon img {
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+@media (max-width: 720px) {
+  .sidebar .identity {
+    padding: 0;
+    justify-content: center;
+  }
+  .sidebar .identity .poreiago-brand-copy {
+    display: none;
+  }
+}

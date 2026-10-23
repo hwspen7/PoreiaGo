@@ -39,6 +39,7 @@ import {
 } from './exportConversation';
 import { getOrCreateSessionId, rememberSessionId, createSessionId } from './sessionIdentity';
 import './style.css';
+import './poreiagoBrand.css';
 
 type Page = 'chat' | 'skills' | 'memory' | 'knowledge' | 'settings';
 type TripSnapshot = {
@@ -652,12 +653,22 @@ function App() {
     <div className="app-shell">
       <aside className={'sidebar' + (collapsed ? ' collapsed' : '')}>
         <div className="identity">
-          <div className="logo">
-            <Compass size={23} />
+          <div className="poreiago-mark-wrap" aria-hidden="true">
+            <img
+              className="poreiago-symbol"
+              src={theme === 'light' ? '/brand/poreiago-favicon-256.png' : '/brand/poreiago-symbol.png'}
+              alt=""
+            />
           </div>
           {!collapsed && (
-            <div className="brand-copy">
-              <strong>PoreiaGo</strong>
+            <div className="brand-copy poreiago-brand-copy">
+              <img
+                className="poreiago-wordmark"
+                src={theme === 'light'
+                  ? '/brand/poreiago-wordmark-light.png'
+                  : '/brand/poreiago-wordmark-dark.png'}
+                alt="PoreiaGo"
+              />
               <BrandTagline entry={brandTagline} placement="sidebar" />
             </div>
           )}
@@ -803,8 +814,12 @@ function App() {
             <div className="message-list">
               {messages.length === 0 ? (
                 <div className="welcome">
-                  <div className="welcome-icon">
-                    <Plane size={29} />
+                  <div className="welcome-icon poreiago-welcome-icon">
+                    <img
+                      src={theme === 'light' ? '/brand/poreiago-favicon-256.png' : '/brand/poreiago-symbol.png'}
+                      alt=""
+                      aria-hidden="true"
+                    />
                   </div>
                   <div className="eyebrow">POREIAGO TRAVEL INTELLIGENCE</div>
                   <h1>Where should we go next?</h1>
