@@ -371,3 +371,50 @@
     max-width: 36vw;
   }
 }
+
+/* Keep the decorative brand typography in the sidebar only. The breadcrumb
+   uses the same UI font as the other navigation controls. */
+#root > .app-shell .topbar .top-left > .topbar-nav-trail {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  min-height: 32px;
+  gap: 8px;
+  line-height: 1;
+  white-space: nowrap;
+}
+#root > .app-shell .topbar .top-left .topbar-nav-trail > .brand-wordmark {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  margin: 0;
+  padding: 0;
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  font-style: normal;
+  letter-spacing: 0;
+  line-height: 1;
+  font-feature-settings: normal;
+  text-transform: none;
+}
+#root > .app-shell .topbar .top-left > .topbar-nav-trail svg {
+  align-self: center;
+  display: block;
+}
+#root > .app-shell .topbar .top-left > .topbar-page-summary {
+  min-height: 32px;
+  align-items: center;
+}
+#root > .app-shell .topbar .top-left > .topbar-page-summary > strong {
+  line-height: 1.2;
+}
+@media (max-width: 620px) {
+  #root > .app-shell .topbar .top-left > .topbar-nav-trail {
+    gap: 4px;
+  }
+  #root > .app-shell .topbar .top-left .topbar-nav-trail > .brand-wordmark {
+    font-size: 11px;
+  }
+}
