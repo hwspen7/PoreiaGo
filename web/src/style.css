@@ -1,6 +1,6 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 :root {
-  font-family: "DM Sans", system-ui, sans-serif;
+  font-family: 'DM Sans', system-ui, sans-serif;
   color: #e9edf5;
   background: #0e1218;
   font-synthesis: none;
@@ -14,7 +14,7 @@
   --accentDim: #193d35;
   --shadow: 0 14px 40px rgba(0, 0, 0, 0.13);
 }
-:root[data-theme="light"] {
+:root[data-theme='light'] {
   color: #1e2a34;
   background: #f7f9fb;
   --bg: #f7f9fb;
@@ -93,14 +93,12 @@ button:disabled {
 }
 .brand-wordmark {
   display: inline-block;
-  font-family:
-    "Syne", "Avenir Next", "Segoe UI Variable Display", "Segoe UI", "Inter",
-    sans-serif;
+  font-family: 'Syne', 'Avenir Next', 'Segoe UI Variable Display', 'Segoe UI', 'Inter', sans-serif;
   font-weight: 700;
   letter-spacing: -0.9px;
   font-feature-settings:
-    "ss01" 1,
-    "cv11" 1;
+    'ss01' 1,
+    'cv11' 1;
   line-height: 1.02;
 }
 .identity .brand-wordmark {

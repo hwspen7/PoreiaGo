@@ -25,18 +25,18 @@ const locationPattern = /^(.*)\s+\(([^()]+)\)\s*$/;
 
 export function cleanPresentationText(text: string): string {
   return text
-    .replace(/\s*\((?:unverified|indicative)\)/gi, "")
-    .replace(/\s+([,.;:])/g, "$1")
+    .replace(/\s*\((?:unverified|indicative)\)/gi, '')
+    .replace(/\s+([,.;:])/g, '$1')
     .trim();
 }
 
 export function parseItineraryActivity(line: string): ItineraryActivity | null {
   const match = activityPattern.exec(line);
   if (!match) return null;
-  const start = `${match[1].padStart(2, "0")}:${match[2]}`;
+  const start = `${match[1].padStart(2, '0')}:${match[2]}`;
   const end =
     match[3] !== undefined && match[4] !== undefined
-      ? `${match[3].padStart(2, "0")}:${match[4]}`
+      ? `${match[3].padStart(2, '0')}:${match[4]}`
       : undefined;
   let body = cleanPresentationText(match[5]);
   let location: string | undefined;
@@ -53,7 +53,7 @@ export function parseItineraryActivity(line: string): ItineraryActivity | null {
     start,
     end,
     headline: useFirstSentence ? firstSentence[1] : body,
-    description: useFirstSentence ? firstSentence[2] : "",
+    description: useFirstSentence ? firstSentence[2] : '',
     location,
   };
 }
@@ -62,17 +62,17 @@ export function parseItineraryFact(part: string): ItineraryFact | null {
   const cleaned = cleanPresentationText(part);
   if (!cleaned) return null;
   const allow = /^Allow\s+(?:about\s+)?(.+)$/i.exec(cleaned);
-  if (allow) return { label: "Duration", value: `About ${allow[1]}` };
+  if (allow) return { label: 'Duration', value: `About ${allow[1]}` };
   const match = factLabelPattern.exec(cleaned);
   if (!match) return null;
   const rawLabel = match[1].toLowerCase();
   const label =
-    rawLabel === "allow" || rawLabel === "duration"
-      ? "Duration"
-      : rawLabel === "cost level"
-        ? "Cost level"
-        : rawLabel === "estimated cost"
-          ? "Estimated cost"
+    rawLabel === 'allow' || rawLabel === 'duration'
+      ? 'Duration'
+      : rawLabel === 'cost level'
+        ? 'Cost level'
+        : rawLabel === 'estimated cost'
+          ? 'Estimated cost'
           : rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1);
   return { label, value: match[2].trim() };
 }
@@ -84,9 +84,7 @@ export function parseItineraryFacts(line: string): ItineraryFact[] | null {
     .filter(Boolean);
   if (!parts.length) return null;
   const facts = parts.map(parseItineraryFact);
-  return facts.every((fact): fact is ItineraryFact => fact !== null)
-    ? facts
-    : null;
+  return facts.every((fact): fact is ItineraryFact => fact !== null) ? facts : null;
 }
 
 export function isItinerarySectionLine(line: string): boolean {
@@ -94,9 +92,7 @@ export function isItinerarySectionLine(line: string): boolean {
 }
 
 export function parseDayMetadata(line: string): ItineraryFact | null {
-  const match = /^(Theme|Area|City|Overnight base)\s*:\s*(.+)$/i.exec(
-    line.trim(),
-  );
+  const match = /^(Theme|Area|City|Overnight base)\s*:\s*(.+)$/i.exec(line.trim());
   if (!match) return null;
   return { label: match[1], value: cleanPresentationText(match[2]) };
 }

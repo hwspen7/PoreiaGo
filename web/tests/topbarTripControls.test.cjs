@@ -12,10 +12,14 @@ const moduleUnderTest = new Module(entry, module);
 moduleUnderTest.filename = entry;
 moduleUnderTest.paths = Module._nodeModulePaths(dirname(entry));
 const previousCssHandler = require.extensions['.css'];
-require.extensions['.css'] = () => { };
+require.extensions['.css'] = () => {};
 try {
   const generated = ts.transpileModule(readFileSync(entry, 'utf8'), {
-    compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    compilerOptions: {
+      jsx: ts.JsxEmit.ReactJSX,
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
   }).outputText;
   moduleUnderTest._compile(generated, entry);
 } finally {
@@ -30,7 +34,13 @@ const props = {
   draftHistory: [{ draft_version: 1 }],
   savedSnapshots: [{ id: 9, source_status: 'verified', source_version: 2 }],
   historyPreview: { journey: 'a', label: 'saved #9', content: 'preview content' },
-  sessionId: 'a', loading: false, onSave() { }, onPreview() { }, async onLoadTitle() { return 'Real archived title'; },
+  sessionId: 'a',
+  loading: false,
+  onSave() {},
+  onPreview() {},
+  async onLoadTitle() {
+    return 'Real archived title';
+  },
 };
 const html = renderToStaticMarkup(React.createElement(TopbarTripControls, props));
 const title = renderToStaticMarkup(React.createElement(CurrentTripTitle, props));
@@ -44,21 +54,31 @@ assert.match(html, /Saved itinerary #9/);
 assert.match(html, /Itinerary history/);
 assert.match(html, /Working draft #1/);
 assert.match(html, /preview content/);
-const draftHtml = renderToStaticMarkup(React.createElement(TopbarTripControls, {
-  ...props,
-  workingDraft: { draft_version: 3, itinerary: { title: 'Revised Day', days: [{}, {}] } },
-}));
-const draftTitle = renderToStaticMarkup(React.createElement(CurrentTripTitle, {
-  activeTrip: props.activeTrip,
-  workingDraft: { draft_version: 3, itinerary: { title: 'Revised Day', days: [{}, {}] } },
-}));
+const draftHtml = renderToStaticMarkup(
+  React.createElement(TopbarTripControls, {
+    ...props,
+    workingDraft: { draft_version: 3, itinerary: { title: 'Revised Day', days: [{}, {}] } },
+  }),
+);
+const draftTitle = renderToStaticMarkup(
+  React.createElement(CurrentTripTitle, {
+    activeTrip: props.activeTrip,
+    workingDraft: { draft_version: 3, itinerary: { title: 'Revised Day', days: [{}, {}] } },
+  }),
+);
 assert.match(draftTitle, /Revised Day/);
 assert.doesNotMatch(draftTitle, /Draft 3/);
 assert.doesNotMatch(draftTitle, /needs review/);
 assert.doesNotMatch(draftHtml, /Revised Day/);
-const emptyHtml = renderToStaticMarkup(React.createElement(TopbarTripControls, {
-  ...props, activeTrip: null, workingDraft: null, savedSnapshots: [], draftHistory: [],
-}));
+const emptyHtml = renderToStaticMarkup(
+  React.createElement(TopbarTripControls, {
+    ...props,
+    activeTrip: null,
+    workingDraft: null,
+    savedSnapshots: [],
+    draftHistory: [],
+  }),
+);
 assert.equal(emptyHtml, '');
 const main = readFileSync(join(src, 'main.tsx'), 'utf8');
 assert.ok(main.includes('<TopbarTripControls'));
@@ -66,7 +86,10 @@ assert.ok(main.includes('<CurrentTripTitle'));
 assert.match(main, /className="topbar-nav-trail"/);
 assert.match(main, /<span>PoreiaGo<\/span><ArrowRight size=\{13\}/);
 assert.match(main, /className="topbar-page-summary"/);
-assert.match(main, /skills: 'Skill catalog', memory: 'Memory & preferences', knowledge: 'Knowledge sources', settings: 'Models & providers'/);
+assert.match(
+  main,
+  /skills: 'Skill catalog', memory: 'Memory & preferences', knowledge: 'Knowledge sources', settings: 'Models & providers'/,
+);
 assert.ok(!main.includes('<span className="crumb">PoreiaGo'));
 const css = readFileSync(join(src, 'topbarTripControls.css'), 'utf8');
 assert.match(css, /\.topbar-nav-trail\s*\{[^}]*align-items:\s*center/s);

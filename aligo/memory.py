@@ -195,8 +195,7 @@ class MemoryStore:
         from .trip_state import validate_itinerary
         from .working_drafts import review_draft
         candidate, current_issues = review_draft(
-            document, previous=previous, intent=intent,
-            protected_constraints=self.journey_constraints(user_id, session_id))
+            document, previous=previous, intent=intent)
         issues = current_issues + (issues if isinstance(issues, list) else [])
         if not isinstance(issues, list):
             issues = []
@@ -405,8 +404,7 @@ class MemoryStore:
                 operation='snapshot' if effective == 'revise' else 'create')
             document = validate_for_commit(
                 document, previous=intent_previous if effective == 'revise' else None,
-                intent=intent, trusted_sources=trusted_sources,
-                protected_constraints=self.journey_constraints(user_id, session_id))
+                intent=intent, trusted_sources=trusted_sources)
             serialized = json.dumps(document, ensure_ascii=False)
             new_version = current + 1
             self._connection.execute(

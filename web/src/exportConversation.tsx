@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { FormattedAnswer } from './FormattedAnswer';
+import { selectJourneyExportMessages } from './exportMessageFilter';
 
 export type ExportMessage = { role: 'user' | 'assistant'; content: string };
 type ExportInput = {
@@ -11,38 +12,60 @@ type ExportInput = {
 };
 
 function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, character => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  })[character] ?? character);
+  return value.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[character] ?? character,
+  );
 }
 
 function filenameStem(title: string): string {
-  const name = title.normalize('NFKC').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
-    .replace(/\s+/g, ' ').replace(/[.\s]+$/g, '').trim().slice(0, 90);
+  const name = title
+    .normalize('NFKC')
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/[.\s]+$/g, '')
+    .trim()
+    .slice(0, 90);
   return name || 'PoreiaGo-Journey';
 }
 
-export function buildConversationHtml({ title, messages, status = 'Conversation', exportedAt = new Date() }: ExportInput): string {
+export function buildConversationHtml({
+  title,
+  messages,
+  status = 'Conversation',
+  exportedAt = new Date(),
+}: ExportInput): string {
   const readableDate = exportedAt.toISOString().slice(0, 10);
   const documentTitle = escapeHtml(title);
-  const sections = messages.map((message, index) => {
-    const roleLabel = message.role === 'user' ? 'Traveler' : 'PoreiaGo';
-    const html = message.role === 'user'
-      ? `<p class="traveler-text">${escapeHtml(message.content)}</p>`
-      : renderToStaticMarkup(createElement(FormattedAnswer, { content: message.content }));
-    return `<section class="export-message export-${message.role}" aria-label="${roleLabel} message ${index + 1}"><div class="message-speaker">${roleLabel}</div>${html}</section>`;
-  }).join('\n');
+  const included = selectJourneyExportMessages(messages);
+  const sections = included
+    .map((message, index) => {
+      const roleLabel = message.role === 'user' ? 'Traveler' : 'PoreiaGo';
+      const html =
+        message.role === 'user'
+          ? `<p class="traveler-text" dir="auto">${escapeHtml(message.content)}</p>`
+          : renderToStaticMarkup(createElement(FormattedAnswer, { content: message.content }));
+      return `<section class="export-message export-${message.role}" aria-label="${roleLabel} message ${index + 1}"><div class="message-speaker">${roleLabel}</div>${html}</section>`;
+    })
+    .join('\n');
   // No external assets, scripts, fonts or tracking. The formatted assistant
   // output uses React's built-in HTML escaping and http(s)-only links.
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="und">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="referrer" content="no-referrer" />
 <title>${documentTitle} - PoreiaGo</title>
 <style>
-:root { color-scheme: light; font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif; color: #19252f; background: #fff; }
+:root { color-scheme: light; font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Malgun Gothic", "Noto Sans CJK SC", "Noto Sans CJK JP", "Noto Sans CJK KR", "Noto Sans", "Segoe UI Emoji", sans-serif; color: #19252f; background: #fff; }
 * { box-sizing: border-box; }
 body { max-width: 860px; margin: 0 auto; padding: 48px 38px 90px; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
 .export-heading { border-bottom: 2px solid #d9e6e5; padding-bottom: 23px; margin-bottom: 28px; }
@@ -52,6 +75,8 @@ h1 { font-size: 27px; line-height: 1.25; margin: 10px 0 13px; overflow-wrap: any
 .export-message { padding: 19px 0 20px; border-bottom: 1px solid #e5ebee; break-inside: auto; }
 .message-speaker { color: #236e64; font-size: 10px; font-weight: 750; letter-spacing: .13em; text-transform: uppercase; margin-bottom: 7px; }
 .export-user { padding-left: 20px; }
+.export-message, .formatted-answer { unicode-bidi: plaintext; }
+.formatted-answer { white-space: normal; }
 .export-user .message-speaker { color: #697985; }
 .traveler-text { padding: 12px 16px; border-radius: 8px; background: #f3f6f8; white-space: pre-wrap; margin: 0; }
 .formatted-answer h3 { margin: 21px 0 8px; line-height: 1.35; font-size: 18px; break-after: avoid; }
@@ -96,7 +121,7 @@ a { color: #146a87; text-decoration: underline; }
 </head>
 <body>
 <header class="export-heading"><div class="export-brand">PoreiaGo / Journey export</div>
-<h1>${documentTitle}</h1><div class="export-meta">${escapeHtml(status)} · Exported ${readableDate} · ${messages.length} messages</div></header>
+<h1>${documentTitle}</h1><div class="export-meta">${escapeHtml(status)} · Exported ${readableDate} · ${included.length} messages</div></header>
 <main>${sections}</main>
 <footer class="export-footer">Travel information and availability should be independently verified with the relevant providers.</footer>
 </body>
@@ -104,7 +129,9 @@ a { color: #146a87; text-decoration: underline; }
 }
 
 export function downloadConversationHtml(html: string, title: string): void {
-  const objectUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+  const objectUrl = URL.createObjectURL(
+    new Blob(['\uFEFF', html], { type: 'text/html;charset=UTF-8' }),
+  );
   const anchor = document.createElement('a');
   anchor.href = objectUrl;
   anchor.download = `${filenameStem(title)}.html`;
@@ -114,20 +141,58 @@ export function downloadConversationHtml(html: string, title: string): void {
   setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }
 
-/** A browser's native Save as PDF preserves Unicode and selectable text. */
+/** Use an explicit UTF-8 HTML document for browser-native PDF printing. */
 export function printConversationPdf(html: string): void {
-  // Open synchronously from the actual click to avoid pop-up blockers.
-  const popup = window.open('', '_blank');
-  if (!popup) throw new Error('The browser blocked the PDF print window. Please allow pop-ups for this site.');
-  popup.document.open();
-  popup.document.write(html);
-  popup.document.close();
-  const startPrint = () => {
-    const invokePrint = () => { if (!popup.closed) { popup.focus(); popup.print(); } };
-    const fontsReady = popup.document.fonts?.ready;
-    if (fontsReady) void fontsReady.then(invokePrint, invokePrint);
-    else invokePrint();
+  // Keep the popup creation synchronous with the Export menu click.
+  // A Blob URL, unlike document.write() into about:blank, has a definite
+  // UTF-8 charset when Chromium/Edge parses the page.
+  const objectUrl = URL.createObjectURL(
+    new Blob(['\uFEFF', html], { type: 'text/html;charset=UTF-8' }),
+  );
+  const popup = window.open(objectUrl, '_blank');
+  if (!popup) {
+    URL.revokeObjectURL(objectUrl);
+    throw new Error(
+      'The browser blocked the PDF print window. Please allow pop-ups for this site.',
+    );
+  }
+
+  let cleaned = false;
+  let pollId = 0;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    window.clearInterval(pollId);
+    URL.revokeObjectURL(objectUrl);
   };
-  if (popup.document.readyState === 'complete') startPrint();
-  else popup.addEventListener('load', startPrint, { once: true });
+  // The window opened for a Blob may initially be an empty document, and
+  // load listeners installed on it before navigation can be lost. Wait for
+  // the actual Blob document rather than printing the blank first page.
+  pollId = window.setInterval(() => {
+    if (popup.closed) {
+      cleanup();
+      return;
+    }
+    try {
+      if (!popup.location.href.startsWith('blob:') || popup.document.readyState !== 'complete')
+        return;
+      window.clearInterval(pollId);
+      const invokePrint = () => {
+        if (popup.closed) {
+          cleanup();
+          return;
+        }
+        popup.addEventListener('afterprint', cleanup, { once: true });
+        popup.focus();
+        popup.print();
+      };
+      const fontsReady = popup.document.fonts?.ready;
+      if (fontsReady) void fontsReady.then(invokePrint, invokePrint);
+      else invokePrint();
+    } catch {
+      // The window may still be navigating or may have been closed.
+    }
+  }, 100);
+  // Keep the Blob available until the print dialog closes, with a failsafe.
+  window.setTimeout(cleanup, 5 * 60 * 1000);
 }

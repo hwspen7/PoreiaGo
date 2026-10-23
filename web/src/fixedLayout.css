@@ -85,7 +85,7 @@ body,
   --scrollbar-hover: #617184;
   --scrollbar-track: #141a23;
 }
-:root[data-theme="light"] {
+:root[data-theme='light'] {
   color-scheme: light;
   --scrollbar-thumb: #a7b6c3;
   --scrollbar-hover: #8193a3;

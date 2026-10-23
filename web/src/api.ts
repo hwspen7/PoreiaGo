@@ -9,8 +9,8 @@ export type Skill = {
   id: string;
   description: string;
   domain: string;
-  wave: "P0" | "P1" | "P2" | "P3";
-  release_state: "implemented" | "planned";
+  wave: 'P0' | 'P1' | 'P2' | 'P3';
+  release_state: 'implemented' | 'planned';
   required_capabilities: string[];
   keywords: string[];
 };
@@ -67,24 +67,20 @@ export type Provider = {
   configured: boolean;
   requires_key: boolean;
 };
-let authToken = "";
+let authToken = '';
 export function setAuthToken(value: string) {
   authToken = value;
 }
-export async function apiJSON<T>(
-  path: string,
-  options?: RequestInit,
-): Promise<T> {
+export async function apiJSON<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...options,
     headers: {
-      ...(options?.body ? { "Content-Type": "application/json" } : {}),
+      ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
       ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       ...options?.headers,
     },
   });
-  if (!response.ok)
-    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
   return response.json() as Promise<T>;
 }
 export async function streamChat(
@@ -97,37 +93,36 @@ export async function streamChat(
   onEvent: (name: string, payload: unknown) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch("/api/chat/stream", {
-    method: "POST",
+  const response = await fetch('/api/chat/stream', {
+    method: 'POST',
     signal,
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
     },
     body: JSON.stringify(payload),
   });
-  if (!response.ok || !response.body)
-    throw new Error(`Request failed: HTTP ${response.status}`);
+  if (!response.ok || !response.body) throw new Error(`Request failed: HTTP ${response.status}`);
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  let buffer = "";
+  let buffer = '';
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
-    buffer = buffer.replace(/\r\n/g, "\n");
-    let position = buffer.indexOf("\n\n");
+    buffer = buffer.replace(/\r\n/g, '\n');
+    let position = buffer.indexOf('\n\n');
     while (position !== -1) {
       const packet = buffer.slice(0, position);
       buffer = buffer.slice(position + 2);
-      let name = "message",
-        data = "";
-      for (const line of packet.split("\n")) {
-        if (line.startsWith("event: ")) name = line.slice(7).trim();
-        if (line.startsWith("data: ")) data += line.slice(6);
+      let name = 'message',
+        data = '';
+      for (const line of packet.split('\n')) {
+        if (line.startsWith('event: ')) name = line.slice(7).trim();
+        if (line.startsWith('data: ')) data += line.slice(6);
       }
       if (data) onEvent(name, JSON.parse(data) as unknown);
-      position = buffer.indexOf("\n\n");
+      position = buffer.indexOf('\n\n');
     }
   }
 }

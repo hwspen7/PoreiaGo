@@ -7,7 +7,7 @@
   margin-top: 2px;
   text-align: left;
   overflow: hidden;
-  font-family: "DM Sans", system-ui, sans-serif;
+  font-family: 'DM Sans', system-ui, sans-serif;
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0;
@@ -93,8 +93,7 @@
   display: block;
   flex: 0 0 auto;
   margin: 0;
-  font-family:
-    "Syne", "Avenir Next", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  font-family: 'Syne', 'Avenir Next', 'Segoe UI Variable Display', 'Segoe UI', sans-serif;
   font-size: 22px;
   font-weight: 700;
   line-height: 1.05;
@@ -111,7 +110,7 @@
   margin: 0;
   padding: 0;
   overflow: visible;
-  font-family: "DM Sans", "Noto Sans", "Segoe UI", system-ui, sans-serif;
+  font-family: 'DM Sans', 'Noto Sans', 'Segoe UI', system-ui, sans-serif;
   font-size: 10px;
   font-weight: 500;
   line-height: 1.3;

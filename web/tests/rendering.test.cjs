@@ -13,12 +13,12 @@ for (const extension of ['.ts', '.tsx']) {
         jsx: ts.JsxEmit.ReactJSX,
         target: ts.ScriptTarget.ES2022,
         module: ts.ModuleKind.CommonJS,
-      }
+      },
     }).outputText;
     module._compile(code, filename);
   };
 }
-require.extensions['.css'] = () => { };
+require.extensions['.css'] = () => {};
 
 const { FormattedAnswer } = require('../src/FormattedAnswer.tsx');
 const userMessage = [
