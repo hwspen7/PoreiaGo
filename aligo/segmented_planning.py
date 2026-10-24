@@ -1028,6 +1028,9 @@ async def generate_segmented_trip(models: Any, *, request: str, destination: str
     city_candidates = await travel_skills.candidate_context(
         allocations, request=request, fields=fields)
     budget_skill_context = await travel_skills.budget_context(fields, days)
+    # Optional external offers are separate from arithmetic budget allocation.
+    # Query only when airports/dates or Booking city IDs/dates are explicit.
+    supplier_price_context = await travel_skills.market_price_context(fields)
     parallelism = _daily_parallelism(models)
     assembled: list[dict] = []
 
@@ -1082,6 +1085,7 @@ async def generate_segmented_trip(models: Any, *, request: str, destination: str
             'source_evidence': (evidence or [])[:5],
             'specialist_skill_candidates': daily_skill_context,
             'specialist_budget_envelope': budget_skill_context,
+            'source_backed_supplier_offers': supplier_price_context,
             'journey_state': {
                 'previous_overnight_base': previous.get('overnight') if previous else None,
                 'current_overnight_base': allocation['overnight'],
@@ -1154,6 +1158,10 @@ async def generate_segmented_trip(models: Any, *, request: str, destination: str
                 # Deterministic schedule Skill catches exact clock overlaps
                 # before a bad day is accepted, without relying on LLM scores.
                 problems += await travel_skills.schedule_issues(candidate[0])
+                # Verify clock gaps for consecutive, provider-matched walking
+                # venues without inventing a transit mode or routing time.
+                problems += travel_skills.verified_transport_issues(
+                    candidate[0], daily_skill_context)
                 if not problems:
                     accepted = candidate[0]
                     break
@@ -1184,6 +1192,8 @@ async def generate_segmented_trip(models: Any, *, request: str, destination: str
                 if revised_issues:
                     continue
                 skill_issues = await travel_skills.schedule_issues(revised)
+                skill_issues += travel_skills.verified_transport_issues(
+                    revised, daily_skill_context)
                 if skill_issues:
                     continue
                 accepted = revised

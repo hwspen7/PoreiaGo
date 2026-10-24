@@ -324,14 +324,32 @@ class MemoryStore:
                     'verified', current_verified, verified['document'], '[]')
             else:
                 raise ValueError('No itinerary exists in this Journey to save.')
-            cursor = self._connection.execute(
-                'INSERT INTO saved_trip_snapshots('
-                'user_id,session_id,source_status,source_version,document,issues,saved_at) '
-                'VALUES(?,?,?,?,?,?,?)',
-                (user_id, session_id, status, version, document, issues, now))
-        return {'saved_id': cursor.lastrowid, 'source_status': status,
+            # Idempotent save: do not create two copies of the same immutable
+            # verified/draft version, including simultaneous API requests.
+            # BEGIN IMMEDIATE above serializes the check and the insert across
+            # separate SQLite connections without a schema migration.
+            existing = self._connection.execute(
+                'SELECT id,document,issues,saved_at FROM saved_trip_snapshots '
+                'WHERE user_id=? AND session_id=? AND source_status=? AND source_version=? '
+                'ORDER BY id DESC LIMIT 1',
+                (user_id, session_id, status, version)).fetchone()
+            if existing:
+                if existing['document'] != document or existing['issues'] != issues:
+                    raise ValueError(
+                        'This itinerary version was already saved with different content. '
+                        'Refresh before saving.')
+                saved_id, saved_at, already_saved = existing['id'], existing['saved_at'], True
+            else:
+                cursor = self._connection.execute(
+                    'INSERT INTO saved_trip_snapshots('
+                    'user_id,session_id,source_status,source_version,document,issues,saved_at) '
+                    'VALUES(?,?,?,?,?,?,?)',
+                    (user_id, session_id, status, version, document, issues, now))
+                saved_id, saved_at, already_saved = cursor.lastrowid, now, False
+        return {'saved_id': saved_id, 'source_status': status,
                 'source_version': version, 'itinerary': json.loads(document),
-                'issues': json.loads(issues), 'saved_at': now}
+                'issues': json.loads(issues), 'saved_at': saved_at,
+                'already_saved': already_saved}
 
     def saved_trip_snapshots(self, user_id, session_id):
         with self._lock:

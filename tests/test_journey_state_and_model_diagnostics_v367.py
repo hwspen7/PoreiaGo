@@ -92,7 +92,16 @@ def test_frontend_scopes_pending_state_to_session():
     assert 'pendingSessions.current.has(target)' in text
     # Both forms are valid TypeScript; formatting tools may add arrow-parameter parentheses.
     assert re.search(r'\bupdateJourney\s*\(\s*target\s*,\s*(?:state|\(\s*state\s*\))\s*=>', text)
-    assert 'const messages = selected?.messages ?? []' in text
+    # The displayed messages may be read directly or filtered through useMemo.
+    # Both variants must derive the conversation from the selected session.
+    direct_session_messages = re.search(
+        r'\bconst\s+messages\s*=\s*selected\?\.messages\s*\?\?\s*\[\s*\]', text
+    )
+    filtered_session_messages = re.search(
+        r'\bconst\s+messages\s*=\s*useMemo\s*\(\s*\(\s*\)\s*=>\s*'
+        r'\(\s*selected\?\.messages\s*\?\?\s*\[\s*\]\s*\)\.filter\s*\(', text
+    )
+    assert direct_session_messages or filtered_session_messages
     assert 'const loading = selected?.loading ?? false' in text
     assert 'sessionRef.current = id' in text
     assert "setMessages(old =>" not in text

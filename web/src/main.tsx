@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { createRoot } from 'react-dom/client';
 import {
@@ -21,7 +21,6 @@ import {
   ShieldCheck,
   Sun,
   Moon,
-  Plane,
   Lock,
   AlertCircle,
 } from 'lucide-react';
@@ -30,6 +29,7 @@ import type { Health, Skill, SkillResult, Provider, ModelProfile } from './api';
 import { FormattedAnswer } from './FormattedAnswer';
 import { TopbarTripControls, CurrentTripTitle } from './TopbarTripControls';
 import { itineraryPreviewText } from './versionPreview';
+import { isVisibleConversationMessage, savedSnapshotForCurrent } from './savePresentation';
 import { BrandTagline, useBrandTagline } from './brandTagline';
 import { ExportMenu } from './ExportMenu';
 import {
@@ -40,6 +40,7 @@ import {
 import { getOrCreateSessionId, rememberSessionId, createSessionId } from './sessionIdentity';
 import './style.css';
 import './poreiagoBrand.css';
+import './skillsOverview.css';
 
 type Page = 'chat' | 'skills' | 'memory' | 'knowledge' | 'settings';
 type TripSnapshot = {
@@ -61,6 +62,7 @@ type WorkingDraft = {
   itinerary: TripSnapshot['itinerary'];
   issues: { code?: string; detail?: string }[];
 };
+
 type ChatMessage = {
   role: 'user' | 'assistant';
   content: string;
@@ -210,6 +212,61 @@ function SkillDetails({ results }: { results: SkillResult[] }) {
     </details>
   );
 }
+const skillOverviewSections = [
+  {
+    title: 'Discover places & experiences',
+    icon: Compass,
+    description:
+      'Explore attractions, local food, cultural experiences, neighborhoods, events, and nearby day trips that fit your interests.',
+    examples: 'Places · Food · Culture · Local experiences',
+    skillIds: [
+      'place-discovery',
+      'restaurant-discovery',
+      'cultural-experience-search',
+      'culinary-specialty-discovery',
+      'neighborhood-intelligence',
+      'local-events-discovery',
+      'seasonal-experience-intelligence',
+      'day-trip-discovery',
+    ],
+  },
+  {
+    title: 'Check the practical details',
+    icon: ShieldCheck,
+    description:
+      'Review place information, opening hours, entry requirements, accessibility needs, and weather before relying on a plan.',
+    examples: 'Venue details · Opening hours · Tickets · Weather',
+    skillIds: [
+      'place-detail-verification',
+      'opening-hours-intelligence',
+      'ticket-entry-planning',
+      'accessibility-suitability',
+      'hourly-weather-forecast',
+    ],
+  },
+  {
+    title: 'Build a realistic itinerary',
+    icon: Layers3,
+    description:
+      'Arrange stops efficiently, account for travel time and budgets, and identify schedule conflicts or unverified assumptions.',
+    examples: 'Routes · Budgets · Timing · Feasibility',
+    skillIds: [
+      'multi-stop-route-optimizer',
+      'trip-budget-allocation',
+      'schedule-conflict-validation',
+      'itinerary-feasibility-audit',
+    ],
+  },
+  {
+    title: 'Adapt when plans change',
+    icon: RefreshCw,
+    description:
+      'Rework affected parts of a journey when a disruption changes what is practical, while retaining the rest of your plan.',
+    examples: 'Alternatives · Changes · Replanning',
+    skillIds: ['disruption-replanning'],
+  },
+];
+
 function App() {
   const brandTagline = useBrandTagline();
   const [historyPreview, setHistoryPreview] = useState<{
@@ -237,7 +294,10 @@ function App() {
     setDrafts((previous) => ({ ...previous, [sessionRef.current]: value }));
   const [error, setError] = useState('');
   const selected = journeys[sessionId];
-  const messages = selected?.messages ?? [];
+  const messages = useMemo(
+    () => (selected?.messages ?? []).filter(isVisibleConversationMessage),
+    [selected?.messages],
+  );
   const loading = selected?.loading ?? false;
   const active = selected?.active ?? [];
   const planningStage = selected?.stage ?? '';
@@ -254,7 +314,6 @@ function App() {
   const [prefValue, setPrefValue] = useState('');
   const [consent, setConsent] = useState(false);
   const [token, setToken] = useState('');
-  const [skillFilter, setSkillFilter] = useState('all');
   const bottom = useRef<HTMLDivElement>(null);
   const load = useCallback(async () => {
     try {
@@ -436,20 +495,22 @@ function App() {
               draftHistory: result.draft_history ?? state.draftHistory,
               savedSnapshots: result.saved_snapshots ?? state.savedSnapshots,
               error: diagnostic,
-              messages: [
-                ...state.messages,
-                {
-                  role: 'assistant',
-                  content: result.answer,
-                  results: result.results,
-                  elapsed_ms: result.elapsed_ms,
-                  planner_mode: result.planner_mode,
-                  trip_change: result.trip_change,
-                  working_draft: result.working_draft,
-                  execution_trace: result.execution_trace,
-                  planner_limitations: result.planner_limitations,
-                },
-              ],
+              messages: isVisibleConversationMessage({ role: 'assistant', content: result.answer })
+                ? [
+                    ...state.messages,
+                    {
+                      role: 'assistant',
+                      content: result.answer,
+                      results: result.results,
+                      elapsed_ms: result.elapsed_ms,
+                      planner_mode: result.planner_mode,
+                      trip_change: result.trip_change,
+                      working_draft: result.working_draft,
+                      execution_trace: result.execution_trace,
+                      planner_limitations: result.planner_limitations,
+                    },
+                  ]
+                : state.messages,
             }));
             load();
           }
@@ -522,7 +583,12 @@ function App() {
       !state ||
       pendingSessions.current.has(target) ||
       state.loading ||
-      (!state.workingDraft && !state.activeTrip)
+      (!state.workingDraft && !state.activeTrip) ||
+      savedSnapshotForCurrent({
+        activeTrip: state.activeTrip,
+        workingDraft: state.workingDraft,
+        savedSnapshots: state.savedSnapshots,
+      }) !== null
     )
       return;
     pendingSessions.current.add(target);
@@ -532,6 +598,7 @@ function App() {
         saved_id: number;
         source_status: string;
         source_version: number;
+        saved_at: string;
       }>('/api/trips/save', {
         method: 'POST',
         body: JSON.stringify({
@@ -541,7 +608,6 @@ function App() {
           expected_draft_version: state.workingDraft?.draft_version ?? 0,
         }),
       });
-      const provisional = snapshot.source_status === 'draft';
       updateJourney(target, (prior) => ({
         ...prior,
         error: '',
@@ -550,16 +616,9 @@ function App() {
             id: snapshot.saved_id,
             source_status: snapshot.source_status,
             source_version: snapshot.source_version,
-            saved_at: new Date().toISOString(),
+            saved_at: snapshot.saved_at,
           },
-          ...prior.savedSnapshots,
-        ],
-        messages: [
-          ...prior.messages,
-          {
-            role: 'assistant',
-            content: `Saved itinerary snapshot #${snapshot.saved_id} (${provisional ? 'provisional working draft' : 'verified itinerary'}). This snapshot is retained while you continue editing.`,
-          },
+          ...prior.savedSnapshots.filter(item => item.id !== snapshot.saved_id),
         ],
       }));
     } catch (error) {
@@ -695,7 +754,6 @@ function App() {
             >
               <item.icon size={18} />
               {!collapsed && <span>{item.label}</span>}
-              {item.page === 'skills' && !collapsed && <b>{skills.length}</b>}
             </button>
           ))}
         </nav>
@@ -744,7 +802,7 @@ function App() {
             </span>
             {page === 'chat' ? (
               workingDraft || activeTrip ? (
-                <CurrentTripTitle activeTrip={activeTrip} workingDraft={workingDraft} />
+                <CurrentTripTitle activeTrip={activeTrip} workingDraft={workingDraft} savedSnapshots={savedSnapshots} />
               ) : (
                 <span className="topbar-empty-trip">New journey</span>
               )
@@ -982,71 +1040,42 @@ function App() {
           </div>
         )}
         {page === 'skills' && (
-          <div className="dashboard">
-            <div className="page-heading">
-              <div className="eyebrow">CAPABILITY REGISTRY</div>
+          <div className="dashboard skills-overview-page">
+            <div className="page-heading skills-overview-heading">
+              <div className="eyebrow">TRAVEL INTELLIGENCE</div>
               <h1>Skills</h1>
               <p>
-                {skills.length} independent itinerary-planning Skills support the travel planner.
+                PoreiaGo combines specialized travel capabilities to help you discover places,
+                check the details, build realistic plans, and adjust when circumstances change.
               </p>
             </div>
-            <div className="stats-grid">
-              <div className="stat-card">
-                <Layers3 />
-                <span>Total documented</span>
-                <strong>{skills.length}</strong>
-              </div>
-              <div className="stat-card">
-                <CheckCircle2 />
-                <span>Implemented</span>
-                <strong>{skills.filter((s) => s.release_state === 'implemented').length}</strong>
-              </div>
-              <div className="stat-card">
-                <Compass />
-                <span>Planned</span>
-                <strong>{skills.filter((s) => s.release_state === 'planned').length}</strong>
-              </div>
-            </div>
-            <div className="catalog-filter">
-              <label htmlFor="filter">Release wave</label>
-              <select
-                id="filter"
-                value={skillFilter}
-                onChange={(e) => setSkillFilter(e.target.value)}
-              >
-                <option value="all">All waves</option>
-                {['P0', 'P1', 'P2', 'P3'].map((w) => (
-                  <option key={w} value={w}>
-                    {w}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="skill-grid">
-              {skills
-                .filter((s) => skillFilter === 'all' || s.wave === skillFilter)
-                .map((s, i) => (
-                  <article className="skill-card" key={s.id}>
-                    <div className="skill-card-top">
-                      <span className="skill-number">
-                        {s.wave} · {i + 1}
-                      </span>
-                      <span className="tag">{s.release_state}</span>
+            <div className="skills-overview-grid">
+              {skillOverviewSections
+                .filter((section) =>
+                  !skills.length || section.skillIds.some((id) => skills.some((skill) => skill.id === id)),
+                )
+                .map((section) => (
+                  <article className="skills-overview-card" key={section.title}>
+                    <div className="skills-overview-icon" aria-hidden="true">
+                      <section.icon size={21} strokeWidth={1.8} />
                     </div>
-                    <h3>
-                      {s.id
-                        .split('-')
-                        .map((w) => w[0].toUpperCase() + w.slice(1))
-                        .join(' ')}
-                    </h3>
-                    <p>{s.description}</p>
-                    <span className="use-skill">
-                      {s.required_capabilities.length
-                        ? s.required_capabilities.join(' · ')
-                        : 'Local capability'}
-                    </span>
+                    <h2>{section.title}</h2>
+                    <p>{section.description}</p>
+                    <div className="skills-overview-examples">{section.examples}</div>
                   </article>
                 ))}
+            </div>
+            <div className="skills-overview-note">
+              <div className="skills-overview-note-icon" aria-hidden="true">
+                <Layers3 size={18} strokeWidth={1.8} />
+              </div>
+              <div>
+                <strong>One connected planning experience</strong>
+                <p>
+                  Relevant skills are used when a trip needs them. Details that cannot be verified
+                  remain clearly identified, so you can keep planning with the right context.
+                </p>
+              </div>
             </div>
           </div>
         )}

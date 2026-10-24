@@ -242,7 +242,7 @@ def create_app(*, database_path=None, skill_root=None, models_file=None,
     async def sessions(user_id:str='local-demo'):return {'sessions':store.sessions(user_id)}
 
     @app.get('/api/history')
-    async def history(user_id:str='local-demo',session_id:str='default'):return {'messages':store.messages(user_id,session_id,limit=None)}
+    async def history(user_id:str='local-demo',session_id:str='default'):return {'messages':store.messages(user_id,session_id,settings.memory_window*2)}
 
     @app.get('/api/trips/active')
     async def active_trip(user_id:str='local-demo',session_id:str='default'):
@@ -280,13 +280,18 @@ def create_app(*, database_path=None, skill_root=None, models_file=None,
             'saved_id': snapshot['saved_id'],
             'source_status': snapshot['source_status'],
             'source_version': snapshot['source_version'],
+            'saved_at': snapshot['saved_at'],
+            'already_saved': bool(snapshot.get('already_saved')),
             'saved_status': 'draft' if snapshot['source_status'] == 'draft' else 'validated',
             'active_itinerary': active, 'working_draft': draft,
             'draft_history': store.working_itinerary_history(request.user_id, request.session_id),
             'saved_snapshots': store.saved_trip_snapshots(request.user_id, request.session_id),
         }, request.session_id)
-        store.add_message(request.user_id, request.session_id, 'user', 'Save my itinerary.')
-        store.add_message(request.user_id, request.session_id, 'assistant', output['answer'])
+        # A repeated Save is idempotent: neither a new copy nor duplicate
+        # administrative conversation messages should be created.
+        if not snapshot.get('already_saved'):
+            store.add_message(request.user_id, request.session_id, 'user', 'Save my itinerary.')
+            store.add_message(request.user_id, request.session_id, 'assistant', output['answer'])
         return output
 
     @app.get('/api/trips/drafts/{version}')

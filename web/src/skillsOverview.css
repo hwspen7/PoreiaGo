@@ -1,0 +1,124 @@
+/* A concise, English-first overview of the existing travel Skills. */
+.skills-overview-page {
+  width: 100%;
+  max-width: 1160px;
+  margin-inline: auto;
+}
+
+.skills-overview-heading {
+  margin-bottom: 28px;
+}
+
+.skills-overview-heading p {
+  max-width: 700px;
+}
+
+.skills-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.skills-overview-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 213px;
+  padding: 26px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  transition: border-color 160ms ease;
+}
+
+.skills-overview-card:hover {
+  border-color: var(--accent);
+}
+
+.skills-overview-icon,
+.skills-overview-note-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--accentDim);
+  color: var(--accent);
+}
+
+.skills-overview-card h2 {
+  margin: 19px 0 9px;
+  font-family: Manrope, sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: -0.4px;
+}
+
+.skills-overview-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.skills-overview-examples {
+  margin-top: auto;
+  padding-top: 18px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.skills-overview-note {
+  display: flex;
+  gap: 17px;
+  align-items: flex-start;
+  margin-top: 17px;
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+}
+
+.skills-overview-note-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.skills-overview-note strong {
+  display: block;
+  margin: 1px 0 5px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.skills-overview-note p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+@media (max-width: 850px) {
+  .skills-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .skills-overview-card {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 540px) {
+  .skills-overview-card {
+    padding: 21px;
+  }
+
+  .skills-overview-note {
+    padding: 19px;
+  }
+}

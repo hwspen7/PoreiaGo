@@ -14,6 +14,8 @@ from types import SimpleNamespace
 from typing import Any
 
 from .providers import ProviderUnavailable
+from .provider_planning_evidence import (route_evidence, supplier_price_evidence,
+                                        verified_day_route_issues)
 
 
 class TravelSkillOrchestrator:
@@ -366,6 +368,16 @@ class TravelSkillOrchestrator:
                 self.trace.append({'skill': 'multi-stop-route-optimizer',
                                    'city': allocation.get('city'), 'status': 'error',
                                    'reason': type(exc).__name__})
+        # Check a bounded real road-network matrix when Geoapify is configured.
+        # This evidence goes into the daily model prompt, not into a new Skill.
+        # Without the provider, the earlier proximity-only hint remains intact.
+        verified_routes = await route_evidence(self.providers, mapped, fields or {})
+        if verified_routes:
+            output['verified_route_evidence'] = verified_routes
+            self.trace.append({'skill': 'route-matrix-evidence',
+                               'city': allocation.get('city'), 'day': allocation.get('day'),
+                               'status': 'ok', 'legs': len(verified_routes['legs']),
+                               'mode': verified_routes['mode']})
         # The everyday provider route must enrich the same selected candidates
         # before serializing them for the Daily Planner. Keep raw metadata for
         # specialist checks; compact model-facing records are not sufficient.
@@ -519,6 +531,20 @@ class TravelSkillOrchestrator:
                 'basis': output.data.get('input_basis'),
                 'daily_average': output.data.get('daily_average'),
                 'verification_level': 'allocation_only'}
+
+    async def market_price_context(self, fields: dict) -> dict:
+        """Get optional source-labelled supplier offers for explicit search parameters."""
+        evidence = await supplier_price_evidence(self.providers, fields)
+        for kind, details in evidence.items():
+            self.trace.append({'skill': 'supplier-price-evidence', 'kind': kind,
+                               'status': 'ok', 'environment': details['environment'],
+                               'offers': len(details['offers'])})
+        return evidence
+
+    @staticmethod
+    def verified_transport_issues(day: dict, day_context: dict) -> list[str]:
+        return verified_day_route_issues(day,
+                                        (day_context or {}).get('verified_route_evidence') or {})
 
     async def schedule_issues(self, day: dict) -> list[str]:
         """Run an existing Skill against explicit HH:MM + duration data only."""
