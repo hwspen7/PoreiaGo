@@ -1,0 +1,37 @@
+/* Layout-only: keep itinerary labels readable in both themes and exports. */
+.conversation .itinerary-facts,
+.conversation .itinerary-day-metadata {
+  min-width: 0;
+}
+.conversation .itinerary-facts > div,
+.conversation .itinerary-day-metadata > div {
+  display: grid;
+  grid-template-columns: minmax(116px, max-content) minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  min-width: 0;
+}
+.conversation .itinerary-facts dt,
+.conversation .itinerary-day-metadata dt {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  min-width: max-content;
+}
+.conversation .itinerary-facts dd,
+.conversation .itinerary-day-metadata dd {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+@media (max-width: 780px) {
+  .conversation .itinerary-facts,
+  .conversation .itinerary-day-metadata {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.conversation .itinerary-answer {
+  width: 100%;
+  min-width: 0;
+}

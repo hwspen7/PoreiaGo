@@ -7,9 +7,7 @@ import {
   BookOpen,
   BrainCircuit,
   CheckCircle2,
-  CloudSun,
   Compass,
-  Database,
   ExternalLink,
   Layers3,
   Menu,
@@ -21,12 +19,14 @@ import {
   ShieldCheck,
   Sun,
   Moon,
-  Lock,
   AlertCircle,
 } from 'lucide-react';
-import { apiJSON, streamChat, setAuthToken } from './api';
-import type { Health, Skill, SkillResult, Provider, ModelProfile } from './api';
-import { FormattedAnswer } from './FormattedAnswer';
+import { apiJSON, streamChat } from './api';
+import { TravelPreferences } from './TravelPreferences';
+import { ModelsProvidersOverview } from './ModelsProvidersOverview';
+import { KnowledgeWorkspace } from './KnowledgeWorkspace';
+import type { Health, Skill, SkillResult } from './api';
+import { ItineraryAnswer } from './ItineraryAnswer';
 import { TopbarTripControls, CurrentTripTitle } from './TopbarTripControls';
 import { itineraryPreviewText } from './versionPreview';
 import { isVisibleConversationMessage, savedSnapshotForCurrent } from './savePresentation';
@@ -41,6 +41,8 @@ import { getOrCreateSessionId, rememberSessionId, createSessionId } from './sess
 import './style.css';
 import './poreiagoBrand.css';
 import './skillsOverview.css';
+import './chatWide.css';
+import './itineraryFactLayout.css';
 
 type Page = 'chat' | 'skills' | 'memory' | 'knowledge' | 'settings';
 type TripSnapshot = {
@@ -214,16 +216,27 @@ function SkillDetails({ results }: { results: SkillResult[] }) {
 }
 const skillOverviewSections = [
   {
-    title: 'Discover places & experiences',
+    title: 'Places & flavors',
+    eyebrow: 'DISCOVER',
     icon: Compass,
     description:
-      'Explore attractions, local food, cultural experiences, neighborhoods, events, and nearby day trips that fit your interests.',
-    examples: 'Places · Food · Culture · Local experiences',
+      'Find memorable attractions, cultural experiences, restaurants, and the flavors that make a destination distinctive.',
+    examples: 'Attractions · Culture · Restaurants · Local cuisine',
     skillIds: [
       'place-discovery',
-      'restaurant-discovery',
       'cultural-experience-search',
+      'restaurant-discovery',
       'culinary-specialty-discovery',
+    ],
+  },
+  {
+    title: 'Local life & nearby escapes',
+    eyebrow: 'EXPLORE',
+    icon: Layers3,
+    description:
+      'Look beyond the main sights with neighborhood discoveries, local events, seasonal experiences, and day trips.',
+    examples: 'Neighborhoods · Events · Seasons · Day trips',
+    skillIds: [
       'neighborhood-intelligence',
       'local-events-discovery',
       'seasonal-experience-intelligence',
@@ -231,11 +244,12 @@ const skillOverviewSections = [
     ],
   },
   {
-    title: 'Check the practical details',
+    title: 'Details you can rely on',
+    eyebrow: 'VERIFY',
     icon: ShieldCheck,
     description:
-      'Review place information, opening hours, entry requirements, accessibility needs, and weather before relying on a plan.',
-    examples: 'Venue details · Opening hours · Tickets · Weather',
+      'Review venue details, opening hours, admission requirements, accessibility information, and weather conditions.',
+    examples: 'Places · Hours · Tickets · Accessibility · Weather',
     skillIds: [
       'place-detail-verification',
       'opening-hours-intelligence',
@@ -245,27 +259,49 @@ const skillOverviewSections = [
     ],
   },
   {
-    title: 'Build a realistic itinerary',
-    icon: Layers3,
+    title: 'Smarter plans, smoother changes',
+    eyebrow: 'PLAN & ADAPT',
+    icon: RefreshCw,
     description:
-      'Arrange stops efficiently, account for travel time and budgets, and identify schedule conflicts or unverified assumptions.',
-    examples: 'Routes · Budgets · Timing · Feasibility',
+      'Shape an efficient itinerary, balance your budget, spot scheduling issues, and adapt the plan when things change.',
+    examples: 'Routes · Budget · Timing · Feasibility · Replanning',
     skillIds: [
       'multi-stop-route-optimizer',
       'trip-budget-allocation',
       'schedule-conflict-validation',
       'itinerary-feasibility-audit',
+      'disruption-replanning',
     ],
   },
-  {
-    title: 'Adapt when plans change',
-    icon: RefreshCw,
-    description:
-      'Rework affected parts of a journey when a disruption changes what is practical, while retaining the rest of your plan.',
-    examples: 'Alternatives · Changes · Replanning',
-    skillIds: ['disruption-replanning'],
-  },
 ];
+
+function skillLabel(id: string): string {
+  return id
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+const skillOverviewDescriptions: Record<string, string> = {
+  'place-discovery': 'Find notable sights that suit your destination and interests',
+  'cultural-experience-search': 'Explore local heritage, traditions, and cultural experiences',
+  'restaurant-discovery': 'Find restaurants that suit your tastes and schedule',
+  'culinary-specialty-discovery': 'Discover regional specialties and signature local dishes',
+  'neighborhood-intelligence': 'Get to know the neighborhoods around your planned stops',
+  'local-events-discovery': 'Find local events taking place during your visit',
+  'seasonal-experience-intelligence': 'Explore seasonal experiences suited to your travel dates',
+  'day-trip-discovery': 'Discover nearby places worth exploring on a day trip',
+  'place-detail-verification': 'Review available venue information before finalizing a visit',
+  'opening-hours-intelligence': 'Check published opening hours against your schedule',
+  'ticket-entry-planning': 'Account for admission tickets and timed-entry requirements',
+  'accessibility-suitability': 'Assess available accessibility details against your needs',
+  'hourly-weather-forecast': 'Use hourly forecasts to plan weather-sensitive activities',
+  'multi-stop-route-optimizer': 'Order stops to make travel between locations more efficient',
+  'trip-budget-allocation': 'Allocate your budget across the main travel expenses',
+  'schedule-conflict-validation': 'Flag overlapping activities and tight transfer windows',
+  'itinerary-feasibility-audit': 'Review timing, logistics, and unresolved planning details',
+  'disruption-replanning': 'Adjust affected activities while keeping the rest of your plan intact',
+};
 
 function App() {
   const brandTagline = useBrandTagline();
@@ -308,12 +344,6 @@ function App() {
   const journeyError = selected?.error ?? '';
   const updateJourney = (id: string, update: (state: JourneyUI) => JourneyUI) =>
     setJourneys((prev) => ({ ...prev, [id]: update(prev[id] ?? emptyJourney()) }));
-  const [prefs, setPrefs] = useState<Record<string, { value: string; scope: string }>>({});
-  const [docs, setDocs] = useState<{ id: number; title: string; size: number }[]>([]);
-  const [prefCategory, setPrefCategory] = useState('travel_style');
-  const [prefValue, setPrefValue] = useState('');
-  const [consent, setConsent] = useState(false);
-  const [token, setToken] = useState('');
   const bottom = useRef<HTMLDivElement>(null);
   const load = useCallback(async () => {
     try {
@@ -399,34 +429,6 @@ function App() {
   useEffect(() => {
     load();
   }, [load]);
-  useEffect(() => {
-    let cancelled = false;
-    const target = sessionId;
-    if (page === 'memory') {
-      setPrefs({});
-      apiJSON<{ preferences: typeof prefs }>(
-        '/api/preferences?user_id=' + USER + '&session_id=' + encodeURIComponent(target),
-      )
-        .then((d) => {
-          if (!cancelled && sessionRef.current === target) setPrefs(d.preferences);
-        })
-        .catch(() => {
-          if (!cancelled) setError('Could not load saved preferences.');
-        });
-    }
-    if (page === 'knowledge') {
-      apiJSON<{ documents: typeof docs }>('/api/knowledge?user_id=' + USER)
-        .then((d) => {
-          if (!cancelled) setDocs(d.documents);
-        })
-        .catch(() => {
-          if (!cancelled) setError('Could not load knowledge sources.');
-        });
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [page, sessionId]);
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
@@ -618,7 +620,7 @@ function App() {
             source_version: snapshot.source_version,
             saved_at: snapshot.saved_at,
           },
-          ...prior.savedSnapshots.filter(item => item.id !== snapshot.saved_id),
+          ...prior.savedSnapshots.filter((item) => item.id !== snapshot.saved_id),
         ],
       }));
     } catch (error) {
@@ -685,29 +687,6 @@ function App() {
       }));
     }
   }
-  async function savePreference() {
-    if (!prefValue.trim() || !consent) return;
-    const target = sessionRef.current;
-    try {
-      const out = await apiJSON<{ preferences: typeof prefs }>('/api/preferences', {
-        method: 'POST',
-        body: JSON.stringify({
-          user_id: USER,
-          session_id: target,
-          category: prefCategory,
-          value: prefValue,
-          scope: 'global',
-          consent: true,
-        }),
-      });
-      if (sessionRef.current === target) setPrefs(out.preferences);
-      setPrefValue('');
-      setConsent(false);
-      setError('');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save preference.');
-    }
-  }
   return (
     <div className="app-shell">
       <aside className={'sidebar' + (collapsed ? ' collapsed' : '')}>
@@ -715,7 +694,11 @@ function App() {
           <div className="poreiago-mark-wrap" aria-hidden="true">
             <img
               className="poreiago-symbol"
-              src={theme === 'light' ? '/brand/poreiago-favicon-256.png' : '/brand/poreiago-symbol.png'}
+              src={
+                theme === 'light'
+                  ? '/brand/poreiago-symbol-light.png'
+                  : '/brand/poreiago-symbol.png'
+              }
               alt=""
             />
           </div>
@@ -723,9 +706,11 @@ function App() {
             <div className="brand-copy poreiago-brand-copy">
               <img
                 className="poreiago-wordmark"
-                src={theme === 'light'
-                  ? '/brand/poreiago-wordmark-light.png'
-                  : '/brand/poreiago-wordmark-dark.png'}
+                src={
+                  theme === 'light'
+                    ? '/brand/poreiago-wordmark-light.png'
+                    : '/brand/poreiago-wordmark-dark.png'
+                }
                 alt="PoreiaGo"
               />
               <BrandTagline entry={brandTagline} placement="sidebar" />
@@ -742,9 +727,9 @@ function App() {
             [
               { page: 'chat', label: 'Travel assistant', icon: MessageCircle },
               { page: 'skills', label: 'Skill catalog', icon: Layers3 },
-              { page: 'memory', label: 'Memory & preferences', icon: BrainCircuit },
-              { page: 'knowledge', label: 'Knowledge sources', icon: BookOpen },
-              { page: 'settings', label: 'Models & providers', icon: Settings2 },
+              { page: 'memory', label: 'Travel Preferences', icon: BrainCircuit },
+              { page: 'knowledge', label: 'Knowledge Sources', icon: BookOpen },
+              { page: 'settings', label: 'Models & Data Services', icon: Settings2 },
             ] as const
           ).map((item) => (
             <button
@@ -802,7 +787,11 @@ function App() {
             </span>
             {page === 'chat' ? (
               workingDraft || activeTrip ? (
-                <CurrentTripTitle activeTrip={activeTrip} workingDraft={workingDraft} savedSnapshots={savedSnapshots} />
+                <CurrentTripTitle
+                  activeTrip={activeTrip}
+                  workingDraft={workingDraft}
+                  savedSnapshots={savedSnapshots}
+                />
               ) : (
                 <span className="topbar-empty-trip">New journey</span>
               )
@@ -813,9 +802,9 @@ function App() {
                     {
                       chat: 'Assistant',
                       skills: 'Skill catalog',
-                      memory: 'Memory & preferences',
-                      knowledge: 'Knowledge sources',
-                      settings: 'Models & providers',
+                      memory: 'Travel Preferences',
+                      knowledge: 'Knowledge Sources',
+                      settings: 'Models & Data Services',
                     }[page]
                   }
                 </strong>
@@ -874,7 +863,11 @@ function App() {
                 <div className="welcome">
                   <div className="welcome-icon poreiago-welcome-icon">
                     <img
-                      src={theme === 'light' ? '/brand/poreiago-favicon-256.png' : '/brand/poreiago-symbol.png'}
+                      src={
+                        theme === 'light'
+                          ? '/brand/poreiago-symbol-light.png'
+                          : '/brand/poreiago-symbol.png'
+                      }
                       alt=""
                       aria-hidden="true"
                     />
@@ -915,7 +908,7 @@ function App() {
                           <div className="user-text">{m.content}</div>
                         ) : (
                           <>
-                            <FormattedAnswer content={m.content} />
+                            <ItineraryAnswer content={m.content} />
                             {m.working_draft ? (
                               <div className="trip-change provisional">
                                 <AlertCircle size={14} />
@@ -1045,23 +1038,79 @@ function App() {
               <div className="eyebrow">TRAVEL INTELLIGENCE</div>
               <h1>Skills</h1>
               <p>
-                PoreiaGo combines specialized travel capabilities to help you discover places,
-                check the details, build realistic plans, and adjust when circumstances change.
+                PoreiaGo combines specialized travel capabilities to help you discover places, check
+                the details, build realistic plans, and adjust when circumstances change.
               </p>
             </div>
             <div className="skills-overview-grid">
               {skillOverviewSections
-                .filter((section) =>
-                  !skills.length || section.skillIds.some((id) => skills.some((skill) => skill.id === id)),
+                .filter(
+                  (section) =>
+                    !skills.length ||
+                    section.skillIds.some((id) => skills.some((skill) => skill.id === id)),
                 )
                 .map((section) => (
-                  <article className="skills-overview-card" key={section.title}>
-                    <div className="skills-overview-icon" aria-hidden="true">
-                      <section.icon size={21} strokeWidth={1.8} />
+                  <article
+                    className="skills-overview-card"
+                    key={section.title}
+                    tabIndex={0}
+                    aria-label={`${section.title}. Hover or focus to explore its Skills.`}
+                  >
+                    <div className="skills-overview-front">
+                      <div className="skills-overview-front-top">
+                        <div className="skills-overview-icon" aria-hidden="true">
+                          <section.icon size={20} strokeWidth={1.9} />
+                        </div>
+                        <span className="skills-overview-category">{section.eyebrow}</span>
+                      </div>
+                      <h2>{section.title}</h2>
+                      <p>{section.description}</p>
+                      <div className="skills-overview-front-footer">
+                        <span className="skills-overview-examples">{section.examples}</span>
+                        <span className="skills-overview-discover" aria-hidden="true">
+                          Explore <ArrowRight size={14} />
+                        </span>
+                      </div>
                     </div>
-                    <h2>{section.title}</h2>
-                    <p>{section.description}</p>
-                    <div className="skills-overview-examples">{section.examples}</div>
+                    <div className="skills-overview-back">
+                      <div className="skills-overview-back-heading">
+                        <div>
+                          <span className="skills-overview-back-eyebrow">{section.eyebrow}</span>
+                          <strong>Explore the Skills</strong>
+                        </div>
+                        <span
+                          className="skills-overview-back-count"
+                          aria-label={`${section.skillIds.length} Skills`}
+                        >
+                          {String(section.skillIds.length).padStart(2, '0')}
+                        </span>
+                      </div>
+                      <div className="skills-overview-skill-list">
+                        {section.skillIds
+                          .filter((id) => !skills.length || skills.some((skill) => skill.id === id))
+                          .map((id, skillIndex) => (
+                            <div
+                              className="skills-overview-skill"
+                              key={id}
+                              tabIndex={0}
+                              aria-label={`${skillLabel(id)}: ${skillOverviewDescriptions[id]}`}
+                            >
+                              <span className="skills-overview-skill-default" aria-hidden="true">
+                                <span className="skills-overview-skill-index">
+                                  {String(skillIndex + 1).padStart(2, '0')}
+                                </span>
+                                <span className="skills-overview-skill-name">{skillLabel(id)}</span>
+                              </span>
+                              <span
+                                className="skills-overview-skill-description"
+                                aria-hidden="true"
+                              >
+                                {skillOverviewDescriptions[id]}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
                   </article>
                 ))}
             </div>
@@ -1079,186 +1128,9 @@ function App() {
             </div>
           </div>
         )}
-        {page === 'settings' && (
-          <div className="dashboard">
-            <div className="page-heading">
-              <div className="eyebrow">EXTENSIBLE INFRASTRUCTURE</div>
-              <h1>Models & providers</h1>
-              <p>
-                Configure model roles in <code>config/models.json</code> and external capabilities
-                through environment variables and provider adapters.
-              </p>
-            </div>
-            <div className="provider-columns">
-              <div className="panel">
-                <div className="panel-title">
-                  <BrainCircuit />
-                  <h3>Model profiles</h3>
-                </div>
-                {(health?.models || []).map((m: ModelProfile) => (
-                  <div className="info-row" key={m.name}>
-                    <div>
-                      <strong>{m.name}</strong>
-                      <div className="meta-sub">
-                        {m.role} · {m.model}
-                      </div>
-                    </div>
-                    <span>
-                      {m.provider === 'local-hf'
-                        ? 'On-demand download'
-                        : m.configured
-                          ? 'Configured'
-                          : 'Not configured'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="panel">
-                <div className="panel-title">
-                  <CloudSun />
-                  <h3>Data providers</h3>
-                </div>
-                {(health?.providers || []).map((p: Provider) => (
-                  <div className="info-row" key={p.capability}>
-                    <div>
-                      <strong>{p.capability}</strong>
-                      <div className="meta-sub">{p.provider}</div>
-                    </div>
-                    <span>
-                      {p.configured ? 'Enabled' : p.requires_key ? 'Requires API key' : 'Disabled'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="panel provider-note">
-              <div className="panel-title">
-                <Lock />
-                <h3>Access token for remote deployments</h3>
-              </div>
-              <p>
-                Leave this empty for localhost development. If the API server uses an access token,
-                paste it here for the current browser session.
-              </p>
-              <div className="setting-line">
-                <input
-                  type="password"
-                  placeholder="Bearer token"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                />
-                <button
-                  className="primary"
-                  onClick={() => {
-                    setAuthToken(token);
-                    load();
-                  }}
-                >
-                  Apply
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {page === 'memory' && (
-          <div className="dashboard">
-            <div className="page-heading">
-              <div className="eyebrow">PRIVACY & CONTINUITY</div>
-              <h1>Memory & preferences</h1>
-              <p>
-                Session history persists locally. Long-term preferences are only saved after
-                explicit consent.
-              </p>
-            </div>
-            <div className="memory-grid">
-              <div className="panel">
-                <div className="panel-title">
-                  <BrainCircuit />
-                  <h3>Saved preferences</h3>
-                </div>
-                {Object.keys(prefs).length ? (
-                  Object.entries(prefs).map(([k, v]) => (
-                    <div key={k} className="info-row">
-                      <strong>{k}</strong>
-                      <span>
-                        {v.value} · {v.scope}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="empty-text">No persistent preferences saved.</div>
-                )}
-              </div>
-              <div className="panel">
-                <div className="panel-title">
-                  <Plus />
-                  <h3>Add preference</h3>
-                </div>
-                <div className="pref-form">
-                  <input
-                    value={prefCategory}
-                    onChange={(e) => setPrefCategory(e.target.value)}
-                    placeholder="Category"
-                  />
-                  <textarea
-                    rows={3}
-                    value={prefValue}
-                    onChange={(e) => setPrefValue(e.target.value)}
-                    placeholder="For example: I prefer a relaxed pace with two attractions per day."
-                  />
-                  <label className="consent">
-                    <input
-                      type="checkbox"
-                      checked={consent}
-                      onChange={(e) => setConsent(e.target.checked)}
-                    />
-                    I explicitly consent to saving this preference.
-                  </label>
-                  <button
-                    className="primary"
-                    disabled={!consent || !prefValue.trim()}
-                    onClick={savePreference}
-                  >
-                    Save preference
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        {page === 'knowledge' && (
-          <div className="dashboard">
-            <div className="page-heading">
-              <div className="eyebrow">PERSONAL KNOWLEDGE</div>
-              <h1>Knowledge sources</h1>
-              <p>
-                Text documents belong to the active local user. Lexical search works offline;
-                Microsoft Multilingual E5 embeddings and Mixedbread reranking are optional model
-                downloads.
-              </p>
-            </div>
-            <div className="panel document-panel">
-              <div className="panel-title">
-                <Database />
-                <h3>Stored documents</h3>
-              </div>
-              {docs.length ? (
-                docs.map((d) => (
-                  <div className="document-row" key={d.id}>
-                    <BookOpen size={17} />
-                    {d.title}
-                    <small>{d.size.toLocaleString()} characters</small>
-                  </div>
-                ))
-              ) : (
-                <div className="empty-text">
-                  No documents yet. Add documents through <code>POST /api/knowledge/documents</code>
-                  .
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {page === 'settings' && <ModelsProvidersOverview health={health} onRefresh={load} />}
+        {page === 'memory' && <TravelPreferences userId={USER} />}
+        {page === 'knowledge' && <KnowledgeWorkspace userId={USER} />}
       </main>
     </div>
   );

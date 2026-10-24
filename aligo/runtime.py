@@ -794,7 +794,8 @@ class Runtime:
         history = self.store.messages(user_id, session_id, self.settings.memory_window)
         explicit = context or {}
         fields = self._context(query, history, explicit)
-        preferences = self.store.preferences(user_id, session_id)
+        from .travel_preferences import planner_preferences
+        preferences = planner_preferences(self.store.preferences(user_id, session_id))
         protected_constraints = self.store.journey_constraints(user_id, session_id)
         verified_previous = self.store.active_itinerary(user_id, session_id)
         working_previous = self.store.working_itinerary(user_id, session_id)

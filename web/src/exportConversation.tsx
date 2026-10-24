@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { FormattedAnswer } from './FormattedAnswer';
+import { formatRenderedItineraryLabels } from './itineraryDisplayLabels';
 import { selectJourneyExportMessages } from './exportMessageFilter';
 
 export type ExportMessage = { role: 'user' | 'assistant'; content: string };
@@ -51,7 +52,9 @@ export function buildConversationHtml({
       const html =
         message.role === 'user'
           ? `<p class="traveler-text" dir="auto">${escapeHtml(message.content)}</p>`
-          : renderToStaticMarkup(createElement(FormattedAnswer, { content: message.content }));
+          : formatRenderedItineraryLabels(
+              renderToStaticMarkup(createElement(FormattedAnswer, { content: message.content })),
+            );
       return `<section class="export-message export-${message.role}" aria-label="${roleLabel} message ${index + 1}"><div class="message-speaker">${roleLabel}</div>${html}</section>`;
     })
     .join('\n');
@@ -89,9 +92,27 @@ h1 { font-size: 27px; line-height: 1.25; margin: 10px 0 13px; overflow-wrap: any
 a { color: #146a87; text-decoration: underline; }
 .itinerary-day-title { padding: 9px 12px; border-left: 4px solid #2c8876; background: #edf6f4; break-after: avoid; }
 .itinerary-day-metadata, .itinerary-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 13px; margin: 9px 0 17px; }
-.itinerary-day-metadata > div, .itinerary-facts > div { display: flex; gap: 6px; font-size: 12px; }
-.itinerary-day-metadata dt, .itinerary-facts dt { color: #60727c; font-weight: 700; }
-.itinerary-day-metadata dd, .itinerary-facts dd { margin: 0; }
+.itinerary-day-metadata > div, .itinerary-facts > div {
+  display: grid;
+  grid-template-columns: minmax(112px, max-content) minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+}
+.itinerary-day-metadata dt, .itinerary-facts dt {
+  color: #60727c;
+  font-weight: 700;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+.itinerary-day-metadata dd, .itinerary-facts dd {
+  min-width: 0;
+  margin: 0;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
 .itinerary-activity { margin: 12px 0; padding: 11px 0 11px 18px; border-left: 2px solid #c3d9d4; break-inside: avoid; }
 .itinerary-activity-header { display: flex; gap: 14px; align-items: flex-start; }
 .itinerary-time { flex: 0 0 72px; font-size: 12px; color: #286f62; font-weight: 750; }
@@ -110,6 +131,9 @@ a { color: #146a87; text-decoration: underline; }
   h1 { font-size: 22pt; }
   .export-heading { margin-bottom: 12pt; }
   .export-message { padding: 12pt 0; }
+  /* A4 prints benefit from a full-width detail column. */
+  .itinerary-activity .itinerary-facts { grid-template-columns: minmax(0, 1fr) !important; }
+  .itinerary-facts > div { grid-template-columns: 125px minmax(0, 1fr); }
   a { color: #146a87; }
 }
 @media (max-width: 550px) {

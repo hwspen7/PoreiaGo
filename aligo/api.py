@@ -17,6 +17,9 @@ from .config import settings,ROOT
 from .contracts import SaveTripRequest
 from .contracts import ChatRequest,SkillRequest,PreferenceRequest,SkillOutput
 from .memory import MemoryStore
+from .travel_preferences import (PROFILE_CATEGORY, TravelProfileWrite, TravelProfileReset,
+                                 read_travel_profile, write_travel_profile,
+                                 reset_travel_profile)
 from .models import ModelGateway
 from .model_management import ModelControl
 from .providers import ProviderGateway,ProviderUnavailable
@@ -309,17 +312,33 @@ def create_app(*, database_path=None, skill_root=None, models_file=None,
             raise HTTPException(404, 'Saved itinerary not found.')
         return snapshot
 
+    @app.get('/api/travel-profile')
+    async def get_travel_profile(user_id: str = 'local-demo'):
+        return read_travel_profile(store, user_id)
+
+    @app.put('/api/travel-profile')
+    async def put_travel_profile(request: TravelProfileWrite):
+        return write_travel_profile(store, request.user_id, request.profile)
+
+    @app.post('/api/travel-profile/reset')
+    async def clear_travel_profile(request: TravelProfileReset):
+        return reset_travel_profile(store, request.user_id)
+
     @app.get('/api/preferences')
     async def prefs(user_id:str='local-demo',session_id:str='default'):return {'preferences':store.preferences(user_id,session_id)}
 
     @app.post('/api/preferences')
     async def save_pref(request:PreferenceRequest):
+        if request.category == PROFILE_CATEGORY:
+            raise HTTPException(400, 'Use /api/travel-profile for structured preferences.')
         try:result=store.update_preference(request.user_id,request.category,request.value,request.scope,request.session_id,request.consent)
         except PermissionError as exc:raise HTTPException(403,str(exc)) from exc
         return {'preferences':result}
 
     @app.delete('/api/preferences/{category}')
     async def delete_pref(category:str,user_id:str='local-demo',scope:str='global',session_id:str='default'):
+        if category == PROFILE_CATEGORY:
+            raise HTTPException(400, 'Use /api/travel-profile/reset to clear the travel profile.')
         store.delete_preference(user_id,category,scope,session_id);return {'deleted':True}
 
     @app.delete('/api/users/{user_id}/data')

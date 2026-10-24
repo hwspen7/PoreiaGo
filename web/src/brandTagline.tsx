@@ -105,13 +105,15 @@ export function BrandTagline({
   entry: BrandTaglineEntry;
   placement: 'sidebar' | 'welcome';
 }) {
+  // Normalize terminal punctuation in every language without altering the locale payload.
+  const displayText = entry.text.replace(/[\s\p{P}]+$/u, '');
   return (
     <span
       className={`brand-tagline brand-tagline--${placement}`}
       aria-label={`Brand tagline in ${entry.language}`}
     >
       <span className="brand-tagline__text" key={entry.code} lang={entry.code} dir="auto">
-        {entry.text}
+        {displayText}
       </span>
     </span>
   );

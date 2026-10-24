@@ -81,7 +81,7 @@ async def remote_owner_check(request: Request):
     # Several endpoints silently default to local-demo when the owner is not
     # included. A nondefault remote owner must always supply its own identity.
     data_scoped = (path in ('/api/sessions', '/api/history', '/api/trips/active')
-                   or path.startswith(('/api/preferences', '/api/knowledge',
+                   or path.startswith(('/api/preferences', '/api/travel-profile', '/api/knowledge',
                                        '/api/chat', '/api/users/'))
                    or (path.startswith('/api/skills/') and path.endswith('/run')))
     if data_scoped and not scoped and owner != 'local-demo':
