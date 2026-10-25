@@ -63,9 +63,6 @@ PoreiaGo is more than a chat interface. It is a stateful travel-planning workspa
   </tr>
 </table>
 
-> [!NOTE]
-> PoreiaGo is under active development. External data availability, travel recommendations, language quality, and inference speed depend on the selected models, provider access, network conditions, and local hardware. An itinerary is not a confirmed reservation.
-
 ## ⚡ Engineering highlights
 
 <table>
