@@ -120,25 +120,57 @@ These are **concurrency-control features, not published throughput benchmarks**.
 
 ```mermaid
 flowchart TB
-    R[Incoming travel request] --> L[User/session async lock]
-    L --> P[Intent and execution plan]
-    P --> D[Validated Skill dependency DAG]
-    D --> G[Ready dependency layer]
-    G --> S[Bounded asyncio semaphore]
-    S --> A[Skill A]
-    S --> B[Skill B]
-    S --> C[Skill C]
-    A --> E[Collect results and provenance]
-    B --> E
-    C --> E
-    E --> N{More layers?}
-    N -->|Yes| G
-    N -->|No| V[Validate and synthesize]
-    V --> W[Versioned state update]
-    P -.-> Q[Bounded SSE event queue]
-    E -.-> Q
-    V -.-> Q
-    Q --> UI[Frontend progress stream]
+    U(["Traveler"])
+    WEB["React · TypeScript<br/>Travel Workspace"]
+
+    subgraph APP["APPLICATION LAYER"]
+        direction LR
+        API["FastAPI<br/>HTTP + SSE"]
+        SESSION["Session Coordination<br/>Concurrency Safety"]
+    end
+
+    subgraph CORE["TRAVEL INTELLIGENCE RUNTIME"]
+        direction TB
+        AGENT["Intent Understanding<br/>Model Orchestration"]
+        PLAN["Itinerary Planning<br/>Adaptive Revision"]
+        SKILLS["Dependency-Aware<br/>Travel Skills"]
+        VALID["Schema · Schedule<br/>Quality Validation"]
+        AGENT --> PLAN
+        AGENT --> SKILLS
+        PLAN --> VALID
+        SKILLS --> VALID
+    end
+
+    subgraph INFRA["MODELS · PROVIDERS · PERSISTENCE"]
+        direction LR
+        GATEWAY["Model Gateway"]
+        PROVIDERS["Travel Data Adapters"]
+        STORE[("SQLite<br/>Versioned Trip State")]
+    end
+
+    MODEL[("Ollama / Cloud LLMs")]
+    DATA[("Optional External<br/>Travel Services")]
+
+    U <--> WEB
+    WEB <-->|"HTTP / SSE"| API
+    API --> SESSION
+    SESSION --> AGENT
+    AGENT <--> GATEWAY
+    GATEWAY <--> MODEL
+    SKILLS --> PROVIDERS
+    PROVIDERS <--> DATA
+    SESSION <--> STORE
+    VALID --> STORE
+
+    classDef ui fill:#e8f2ff,stroke:#397cce,color:#153e70,stroke-width:1.4px
+    classDef core fill:#e4f7f2,stroke:#159c86,color:#095c50,stroke-width:1.4px
+    classDef infra fill:#f0eafd,stroke:#9272d6,color:#51318f,stroke-width:1.4px
+    classDef external fill:#f3f4f6,stroke:#9299a5,color:#374151
+
+    class U,WEB,API,SESSION ui
+    class AGENT,PLAN,SKILLS,VALID core
+    class GATEWAY,PROVIDERS,STORE infra
+    class MODEL,DATA external
 ```
 
 The graph illustrates the orchestration pattern. Actual Skill dependencies, recovery permissions, and available providers are defined by the selected Skill manifests and execution plan.
@@ -148,30 +180,54 @@ The graph illustrates the orchestration pattern. Actual Skill dependencies, reco
 ## 🏗️ System architecture
 
 ```mermaid
-flowchart LR
-    Traveler([Traveler]) <--> Web[React + TypeScript<br/>Travel Workspace]
-    Web <-->|HTTP / SSE| API[FastAPI Application]
+flowchart TB
+    REQ(["Incoming Travel Request"])
+    LOCK["Session-Safe<br/>Execution"]
+    INTENT["Intent & Execution Plan"]
+    DAG["Validated Skill<br/>Dependency DAG"]
+    READY["Ready Dependency Layer"]
+    LIMIT["Bounded Concurrency<br/>asyncio.Semaphore"]
 
-    subgraph Runtime[Travel Intelligence Runtime]
-        Gate[Session Coordination]
-        Agent[Intent + Model Orchestration]
-        Planner[Itinerary Planning + Revision]
-        Skills[18 Travel Skills]
-        Guard[Validation + Quality Gates]
+    subgraph WORKERS["PARALLEL SKILL EXECUTION"]
+        direction LR
+        A["Skill A"]
+        B["Skill B"]
+        C["Skill C"]
     end
 
-    API --> Gate
-    Gate --> Agent
-    Agent --> Planner
-    Agent --> Skills
-    Planner --> Guard
-    Skills --> Guard
+    COLLECT["Result Aggregation<br/>Evidence & Provenance"]
+    NEXT{"More Dependency<br/>Layers?"}
+    VALID["Validation & Synthesis"]
+    STATE[("Versioned State<br/>Persistence")]
 
-    Agent <-->|OpenAI-compatible interface| LLM[(Ollama / Cloud Models)]
-    Skills --> Providers[Provider Abstraction]
-    Providers -.-> Sources[(Optional Travel Data Sources)]
-    Gate <--> Store[(SQLite + Travel Library)]
-    Guard --> Store
+    subgraph STREAM["NON-BLOCKING EVENT STREAM"]
+        direction LR
+        Q["Bounded SSE Queue<br/>Backpressure"]
+        CLIENT["Frontend<br/>Progress Updates"]
+        Q --> CLIENT
+    end
+
+    REQ --> LOCK --> INTENT --> DAG
+    DAG --> READY --> LIMIT
+    LIMIT --> A & B & C
+    A & B & C --> COLLECT
+    COLLECT --> NEXT
+    NEXT -->|"Yes"| READY
+    NEXT -->|"No"| VALID --> STATE
+
+    INTENT -.-> Q
+    COLLECT -.-> Q
+    VALID -.-> Q
+
+    classDef input fill:#e8f2ff,stroke:#397cce,color:#153e70
+    classDef control fill:#e4f7f2,stroke:#159c86,color:#095c50
+    classDef parallel fill:#f0eafd,stroke:#9272d6,color:#51318f
+    classDef output fill:#f3f4f6,stroke:#9299a5,color:#374151
+
+    class REQ,LOCK,INTENT input
+    class DAG,READY,COLLECT,NEXT,VALID control
+    class LIMIT,A,B,C parallel
+    class STATE,Q,CLIENT output
 ```
 
 | Layer | Responsibilities |
@@ -189,15 +245,35 @@ flowchart LR
 ### Model-centric, structured travel generation
 
 ```mermaid
-flowchart LR
-    A[Travel request + preferences] --> B[Intent understanding]
-    B --> C[Trip blueprint]
-    C --> D[Segmented daily generation]
-    D --> E[Cross-day reconciliation]
-    E --> F[Constraints + quality validation]
-    F --> G[Working draft / accepted itinerary]
-    G --> H[Targeted user revision]
-    H --> F
+flowchart TB
+    INPUT(["Travel Request<br/>Preferences & Constraints"])
+    INTENT["Model-Driven<br/>Intent Understanding"]
+    BLUEPRINT["Trip Blueprint<br/>Days · Destinations · Structure"]
+    DAILY["Segmented Daily Generation<br/>Context-Aware Planning"]
+    RECON["Schedule & Cross-Day<br/>Reconciliation"]
+    CHECK["Constraint Validation<br/>Quality Assessment"]
+    DRAFT[("Persisted Itinerary<br/>Version")]
+
+    EDIT["User Requests<br/>Targeted Changes"]
+    IMPACT["Revision Scope<br/>& Constraint Preservation"]
+    REPAIR["Targeted Regeneration<br/>Activity / Day Repair"]
+
+    INPUT --> INTENT --> BLUEPRINT
+    BLUEPRINT --> DAILY --> RECON
+    RECON --> CHECK --> DRAFT
+    DRAFT --> EDIT
+    EDIT --> IMPACT --> REPAIR
+    REPAIR --> RECON
+
+    classDef request fill:#e8f2ff,stroke:#397cce,color:#153e70,stroke-width:1.4px
+    classDef ai fill:#e4f7f2,stroke:#159c86,color:#095c50,stroke-width:1.4px
+    classDef process fill:#f0eafd,stroke:#9272d6,color:#51318f
+    classDef state fill:#f3f4f6,stroke:#9299a5,color:#374151
+
+    class INPUT,EDIT request
+    class INTENT,BLUEPRINT,DAILY,REPAIR ai
+    class RECON,CHECK,IMPACT process
+    class DRAFT state
 ```
 
 Rather than asking a model to produce an entire long trip in one unbounded response, the planner supports **blueprint-first, day-by-day generation**, structured outputs, targeted activity repair, and cross-day consistency checks. Model budgets and recovery paths are bounded to reduce runaway generation and unintended edits.
