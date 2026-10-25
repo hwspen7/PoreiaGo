@@ -120,6 +120,63 @@ These are **concurrency-control features, not published throughput benchmarks**.
 
 ```mermaid
 flowchart TB
+    REQ(["Incoming Travel Request"])
+    LOCK["Session-Safe<br/>Execution"]
+    INTENT["Intent & Execution Plan"]
+    DAG["Validated Skill<br/>Dependency DAG"]
+    READY["Ready Dependency Layer"]
+    LIMIT["Bounded Concurrency<br/>asyncio.Semaphore"]
+
+    subgraph WORKERS["PARALLEL SKILL EXECUTION"]
+        direction LR
+        A["Skill A"]
+        B["Skill B"]
+        C["Skill C"]
+    end
+
+    COLLECT["Result Aggregation<br/>Evidence & Provenance"]
+    NEXT{"More Dependency<br/>Layers?"}
+    VALID["Validation & Synthesis"]
+    STATE[("Versioned State<br/>Persistence")]
+
+    subgraph STREAM["NON-BLOCKING EVENT STREAM"]
+        direction LR
+        Q["Bounded SSE Queue<br/>Backpressure"]
+        CLIENT["Frontend<br/>Progress Updates"]
+        Q --> CLIENT
+    end
+
+    REQ --> LOCK --> INTENT --> DAG
+    DAG --> READY --> LIMIT
+    LIMIT --> A & B & C
+    A & B & C --> COLLECT
+    COLLECT --> NEXT
+    NEXT -->|"Yes"| READY
+    NEXT -->|"No"| VALID --> STATE
+
+    INTENT -.-> Q
+    COLLECT -.-> Q
+    VALID -.-> Q
+
+    classDef input fill:#e8f2ff,stroke:#397cce,color:#153e70
+    classDef control fill:#e4f7f2,stroke:#159c86,color:#095c50
+    classDef parallel fill:#f0eafd,stroke:#9272d6,color:#51318f
+    classDef output fill:#f3f4f6,stroke:#9299a5,color:#374151
+
+    class REQ,LOCK,INTENT input
+    class DAG,READY,COLLECT,NEXT,VALID control
+    class LIMIT,A,B,C parallel
+    class STATE,Q,CLIENT output
+```
+
+The graph illustrates the orchestration pattern. Actual Skill dependencies, recovery permissions, and available providers are defined by the selected Skill manifests and execution plan.
+
+</details>
+
+## 🏗️ System architecture
+
+```mermaid
+flowchart TB
     U(["Traveler"])
     WEB["React · TypeScript<br/>Travel Workspace"]
 
@@ -171,63 +228,6 @@ flowchart TB
     class AGENT,PLAN,SKILLS,VALID core
     class GATEWAY,PROVIDERS,STORE infra
     class MODEL,DATA external
-```
-
-The graph illustrates the orchestration pattern. Actual Skill dependencies, recovery permissions, and available providers are defined by the selected Skill manifests and execution plan.
-
-</details>
-
-## 🏗️ System architecture
-
-```mermaid
-flowchart TB
-    REQ(["Incoming Travel Request"])
-    LOCK["Session-Safe<br/>Execution"]
-    INTENT["Intent & Execution Plan"]
-    DAG["Validated Skill<br/>Dependency DAG"]
-    READY["Ready Dependency Layer"]
-    LIMIT["Bounded Concurrency<br/>asyncio.Semaphore"]
-
-    subgraph WORKERS["PARALLEL SKILL EXECUTION"]
-        direction LR
-        A["Skill A"]
-        B["Skill B"]
-        C["Skill C"]
-    end
-
-    COLLECT["Result Aggregation<br/>Evidence & Provenance"]
-    NEXT{"More Dependency<br/>Layers?"}
-    VALID["Validation & Synthesis"]
-    STATE[("Versioned State<br/>Persistence")]
-
-    subgraph STREAM["NON-BLOCKING EVENT STREAM"]
-        direction LR
-        Q["Bounded SSE Queue<br/>Backpressure"]
-        CLIENT["Frontend<br/>Progress Updates"]
-        Q --> CLIENT
-    end
-
-    REQ --> LOCK --> INTENT --> DAG
-    DAG --> READY --> LIMIT
-    LIMIT --> A & B & C
-    A & B & C --> COLLECT
-    COLLECT --> NEXT
-    NEXT -->|"Yes"| READY
-    NEXT -->|"No"| VALID --> STATE
-
-    INTENT -.-> Q
-    COLLECT -.-> Q
-    VALID -.-> Q
-
-    classDef input fill:#e8f2ff,stroke:#397cce,color:#153e70
-    classDef control fill:#e4f7f2,stroke:#159c86,color:#095c50
-    classDef parallel fill:#f0eafd,stroke:#9272d6,color:#51318f
-    classDef output fill:#f3f4f6,stroke:#9299a5,color:#374151
-
-    class REQ,LOCK,INTENT input
-    class DAG,READY,COLLECT,NEXT,VALID control
-    class LIMIT,A,B,C parallel
-    class STATE,Q,CLIENT output
 ```
 
 | Layer | Responsibilities |
