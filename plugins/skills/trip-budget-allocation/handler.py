@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 import re
 
-from aligo.skill_support import finite_price, reply
+from services.skill_support import finite_price, reply
 
 
 async def run(ctx, args):

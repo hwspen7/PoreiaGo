@@ -1,8 +1,8 @@
 """Prioritize evidence-backed cultural experiences without inventing workshop sessions."""
 from __future__ import annotations
 
-from aligo.providers import ProviderUnavailable
-from aligo.skill_support import coordinates, place_record, reply, slug
+from services.providers import ProviderUnavailable
+from services.skill_support import coordinates, place_record, reply, slug
 
 
 def _terms(value):

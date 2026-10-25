@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from aligo.skill_support import reply
+from services.skill_support import reply
 
 
 def _minutes(value, name):

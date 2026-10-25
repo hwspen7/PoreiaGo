@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import pytest
 
-from aligo.config import settings
+from core.config import settings
 
 
 def _model_credential_names() -> set[str]:
@@ -27,7 +27,7 @@ def _model_credential_names() -> set[str]:
 def isolate_cloud_models(monkeypatch):
     """Disable ambient API keys; individual mocked-transport tests can opt in.
 
-    ``aligo.config`` loads the local ``.env`` at import time. Clearing only
+    ``core.config`` loads the local ``.env`` at import time. Clearing only
     environment variables in a shell command is not sufficient for reliable
     tests, because this file may reload the original secrets. This fixture
     runs after imports and before each test, so ModelGateway sees no implicit
@@ -38,8 +38,8 @@ def isolate_cloud_models(monkeypatch):
         monkeypatch.delenv(name, raising=False)
     # Keep assertions stable if the developer selects a different local or
     # hosted model in .env. Tests that need overrides set them explicitly.
-    for name in ('ALIGO_GROQ_MODEL', 'ALIGO_EMBEDDING_MODEL', 'ALIGO_RERANKER_MODEL',
-                 'ALIGO_CONTENT_REVIEW_MODE'):
+    for name in ('POREIAGO_GROQ_MODEL', 'POREIAGO_EMBEDDING_MODEL', 'POREIAGO_RERANKER_MODEL',
+                 'POREIAGO_CONTENT_REVIEW_MODE'):
         monkeypatch.delenv(name, raising=False)
     # Content review is an explicitly enabled, optional second LLM pass.
     # The developer's .env may enable it for real users, but baseline tests

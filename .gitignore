@@ -1,12 +1,11 @@
 
-# Aligo Travel Assistant - repository ignore rules
+# PoreiaGo - repository ignore rules
 
 # Local environment and private credentials
 .env
 .env.*
 !.env.example
 !.env.sample
-!env.example
 *.pem
 *.p12
 *.pfx
@@ -98,3 +97,6 @@ Desktop.ini
 *.swp
 *.swo
 *~
+
+# Local configuration backups
+/data/backups/

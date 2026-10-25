@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aligo-travel-v3"
+name = "poreiago"
 version = "3.6.3"
-description = "An extensible multi-model travel intelligence runtime"
+description = "PoreiaGo, an extensible AI-powered travel planning platform"
 requires-python = ">=3.11"
 dependencies = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.30,<1", "pydantic>=2.8,<3", "python-dotenv>=1,<2", "httpx>=0.27,<1", "openai>=1.65,<3", "jsonschema>=4.21,<5"]
 
@@ -14,7 +14,11 @@ ml = ["sentence-transformers>=3,<6", "numpy>=1.26,<3"]
 dev = ["pytest>=8,<10", "pytest-asyncio>=0.23,<2"]
 
 [project.scripts]
-aligo = "aligo.cli:main"
+poreiago = "app.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["aligo*"]
+include = ["app*", "core*", "intelligence*", "planning*", "services*", "storage*", "quality*", "models*", "evaluation*", "maintenance*", "poreiago_resources*"]
+
+# Files are copied to poreiago_resources by setup.py before packaging.
+[tool.setuptools.package-data]
+poreiago_resources = ["**/*"]

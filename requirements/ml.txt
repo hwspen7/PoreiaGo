@@ -1,0 +1,8 @@
+# Optional local semantic retrieval: installed separately from the FastAPI runtime.
+# E5 Instruct uses SentenceTransformers; Mixedbread v2 reranking requires recent
+# SentenceTransformers / Transformers for the model-specific CrossEncoder.
+-r base.txt
+sentence-transformers>=5.4,<6
+transformers>=4.51,<5
+torch>=2.2,<3
+numpy>=1.26,<3

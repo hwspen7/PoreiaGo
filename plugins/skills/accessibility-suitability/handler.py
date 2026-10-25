@@ -1,5 +1,5 @@
 """Independent accessibility-suitability execution entrypoint."""
-from aligo.advanced_itinerary_skills import accessibility_suitability
+from services.advanced_itinerary_skills import accessibility_suitability
 
 
 async def run(ctx, args):

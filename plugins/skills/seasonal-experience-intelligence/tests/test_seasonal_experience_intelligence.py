@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 import pytest
-from aligo.registry import SkillRegistry
+from services.registry import SkillRegistry
 
 
 @pytest.mark.asyncio

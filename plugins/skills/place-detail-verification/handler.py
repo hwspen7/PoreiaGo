@@ -1,8 +1,8 @@
 """Resolve candidate venue identity conservatively from IDs, aliases and provider details."""
 from __future__ import annotations
 
-from aligo.providers import ProviderUnavailable
-from aligo.skill_support import place_record, reply, slug
+from services.providers import ProviderUnavailable
+from services.skill_support import place_record, reply, slug
 
 
 def _same_geography(row, city, country):

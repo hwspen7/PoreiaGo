@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from datetime import date
-from aligo.providers import ProviderUnavailable
-from aligo.skill_support import coordinates, reply, slug
+from services.providers import ProviderUnavailable
+from services.skill_support import coordinates, reply, slug
 
 
 async def run(ctx, args):

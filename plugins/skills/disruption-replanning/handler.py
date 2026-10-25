@@ -1,7 +1,7 @@
 """Propose local, non-destructive itinerary repairs grounded in supplied alternatives."""
 from __future__ import annotations
 
-from aligo.skill_support import parse_time, reply, slug
+from services.skill_support import parse_time, reply, slug
 
 
 async def run(ctx, args):

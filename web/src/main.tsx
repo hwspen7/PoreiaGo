@@ -21,28 +21,28 @@ import {
   Moon,
   AlertCircle,
 } from 'lucide-react';
-import { apiJSON, streamChat } from './api';
-import { TravelPreferences } from './TravelPreferences';
-import { ModelsProvidersOverview } from './ModelsProvidersOverview';
-import { KnowledgeWorkspace } from './KnowledgeWorkspace';
-import type { Health, Skill, SkillResult } from './api';
-import { ItineraryAnswer } from './ItineraryAnswer';
-import { TopbarTripControls, CurrentTripTitle } from './TopbarTripControls';
-import { itineraryPreviewText } from './versionPreview';
-import { isVisibleConversationMessage, savedSnapshotForCurrent } from './savePresentation';
-import { BrandTagline, useBrandTagline } from './brandTagline';
-import { ExportMenu } from './ExportMenu';
+import { apiJSON, streamChat } from './lib/api';
+import { TravelPreferences } from './features/preferences/TravelPreferences';
+import { ModelsProvidersOverview } from './features/providers/ModelsProvidersOverview';
+import { KnowledgeWorkspace } from './features/library/KnowledgeWorkspace';
+import type { Health, Skill, SkillResult } from './lib/api';
+import { ItineraryAnswer } from './features/itinerary/ItineraryAnswer';
+import { TopbarTripControls, CurrentTripTitle } from './features/trips/TopbarTripControls';
+import { itineraryPreviewText } from './features/trips/versionPreview';
+import { isVisibleConversationMessage, savedSnapshotForCurrent } from './features/trips/savePresentation';
+import { BrandTagline, useBrandTagline } from './features/branding/brandTagline';
+import { ExportMenu } from './features/export/ExportMenu';
 import {
   buildConversationHtml,
   downloadConversationHtml,
   printConversationPdf,
-} from './exportConversation';
-import { getOrCreateSessionId, rememberSessionId, createSessionId } from './sessionIdentity';
-import './style.css';
-import './poreiagoBrand.css';
-import './skillsOverview.css';
-import './chatWide.css';
-import './itineraryFactLayout.css';
+} from './features/export/exportConversation';
+import { getOrCreateSessionId, rememberSessionId, createSessionId } from './lib/sessionIdentity';
+import './styles/style.css';
+import './features/branding/poreiagoBrand.css';
+import './features/skills/skillsOverview.css';
+import './styles/chatWide.css';
+import './features/itinerary/itineraryFactLayout.css';
 
 type Page = 'chat' | 'skills' | 'memory' | 'knowledge' | 'settings';
 type TripSnapshot = {
@@ -725,10 +725,10 @@ function App() {
         <nav>
           {(
             [
-              { page: 'chat', label: 'Travel assistant', icon: MessageCircle },
-              { page: 'skills', label: 'Skill catalog', icon: Layers3 },
+              { page: 'chat', label: 'Travel Assistant', icon: MessageCircle },
+              { page: 'skills', label: 'Skill Catalog', icon: Layers3 },
               { page: 'memory', label: 'Travel Preferences', icon: BrainCircuit },
-              { page: 'knowledge', label: 'Knowledge Sources', icon: BookOpen },
+              { page: 'knowledge', label: 'Travel Library', icon: BookOpen },
               { page: 'settings', label: 'Models & Data Services', icon: Settings2 },
             ] as const
           ).map((item) => (
@@ -801,9 +801,9 @@ function App() {
                   {
                     {
                       chat: 'Assistant',
-                      skills: 'Skill catalog',
+                      skills: 'Skill Catalog',
                       memory: 'Travel Preferences',
-                      knowledge: 'Knowledge Sources',
+                      knowledge: 'Travel Library',
                       settings: 'Models & Data Services',
                     }[page]
                   }

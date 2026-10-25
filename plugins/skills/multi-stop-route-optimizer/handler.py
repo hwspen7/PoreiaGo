@@ -5,7 +5,7 @@ Haversine is used for proximity only; it cannot assert walking/rail time.
 from __future__ import annotations
 
 from math import radians, cos, sin, asin, sqrt, isfinite
-from aligo.skill_support import reply, coordinates, slug
+from services.skill_support import reply, coordinates, slug
 
 
 def km(a, b):

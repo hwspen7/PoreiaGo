@@ -1,5 +1,5 @@
 """Independent seasonal-experience-intelligence execution entrypoint."""
-from aligo.advanced_itinerary_skills import seasonal_experience_intelligence
+from services.advanced_itinerary_skills import seasonal_experience_intelligence
 
 
 async def run(ctx, args):

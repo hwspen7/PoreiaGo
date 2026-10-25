@@ -5,9 +5,9 @@
       "role": "router",
       "provider": "openai-compatible",
       "model": "qwen3.8:27b-q4_K_M",
-      "model_env": "ALIGO_LOCAL_MODEL",
+      "model_env": "POREIAGO_LOCAL_MODEL",
       "base_url": "http://127.0.0.1:11434/v1",
-      "api_key_env": "ALIGO_OLLAMA_API_KEY",
+      "api_key_env": "POREIAGO_OLLAMA_API_KEY",
       "request_timeout_seconds": 300,
       "decision_only": true,
       "reasoning_effort": "none",
@@ -18,9 +18,9 @@
       "role": "reasoning",
       "provider": "openai-compatible",
       "model": "qwen3.8:27b-q4_K_M",
-      "model_env": "ALIGO_LOCAL_MODEL",
+      "model_env": "POREIAGO_LOCAL_MODEL",
       "base_url": "http://127.0.0.1:11434/v1",
-      "api_key_env": "ALIGO_OLLAMA_API_KEY",
+      "api_key_env": "POREIAGO_OLLAMA_API_KEY",
       "request_timeout_seconds": 300,
       "decision_only": false,
       "max_output_tokens": 8192
@@ -30,9 +30,9 @@
       "role": "synthesis",
       "provider": "openai-compatible",
       "model": "qwen3.8:27b-q4_K_M",
-      "model_env": "ALIGO_LOCAL_MODEL",
+      "model_env": "POREIAGO_LOCAL_MODEL",
       "base_url": "http://127.0.0.1:11434/v1",
-      "api_key_env": "ALIGO_OLLAMA_API_KEY",
+      "api_key_env": "POREIAGO_OLLAMA_API_KEY",
       "request_timeout_seconds": 300,
       "decision_only": false,
       "max_output_tokens": 8192
@@ -42,7 +42,7 @@
       "role": "synthesis",
       "provider": "openai-compatible",
       "model": "qwen/qwen3.8-27b",
-      "model_env": "ALIGO_GROQ_MODEL",
+      "model_env": "POREIAGO_GROQ_MODEL",
       "base_url": "https://api.groq.com/openai/v1",
       "api_key_env": "GROQ_API_KEY",
       "request_timeout_seconds": 65,
@@ -54,7 +54,7 @@
       "role": "reasoning",
       "provider": "openai-compatible",
       "model": "qwen/qwen3.8-27b",
-      "model_env": "ALIGO_GROQ_MODEL",
+      "model_env": "POREIAGO_GROQ_MODEL",
       "base_url": "https://api.groq.com/openai/v1",
       "api_key_env": "GROQ_API_KEY",
       "request_timeout_seconds": 65,
@@ -66,7 +66,7 @@
       "role": "router",
       "provider": "openai-compatible",
       "model": "qwen/qwen3.8-27b",
-      "model_env": "ALIGO_GROQ_MODEL",
+      "model_env": "POREIAGO_GROQ_MODEL",
       "base_url": "https://api.groq.com/openai/v1",
       "api_key_env": "GROQ_API_KEY",
       "request_timeout_seconds": 65,
@@ -79,7 +79,7 @@
       "provider": "openai-compatible",
       "model": "deepseek-chat",
       "base_url": "https://api.deepseek.com/v1",
-      "api_key_env": "ALIGO_REASONING_API_KEY"
+      "api_key_env": "POREIAGO_REASONING_API_KEY"
     },
     {
       "name": "reasoning-backup",
@@ -87,7 +87,7 @@
       "provider": "openai-compatible",
       "model": "gpt-4.1-mini",
       "base_url": "https://api.openai.com/v1",
-      "api_key_env": "ALIGO_OPENAI_API_KEY"
+      "api_key_env": "POREIAGO_OPENAI_API_KEY"
     },
     {
       "name": "router-primary",
@@ -95,7 +95,7 @@
       "provider": "openai-compatible",
       "model": "deepseek-chat",
       "base_url": "https://api.deepseek.com/v1",
-      "api_key_env": "ALIGO_ROUTER_API_KEY"
+      "api_key_env": "POREIAGO_ROUTER_API_KEY"
     },
     {
       "name": "synthesis-primary",
@@ -103,7 +103,7 @@
       "provider": "openai-compatible",
       "model": "deepseek-chat",
       "base_url": "https://api.deepseek.com/v1",
-      "api_key_env": "ALIGO_SYNTHESIS_API_KEY"
+      "api_key_env": "POREIAGO_SYNTHESIS_API_KEY"
     },
     {
       "name": "embedding-multilingual",

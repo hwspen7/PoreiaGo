@@ -1,5 +1,5 @@
 """Independent day-trip-discovery execution entrypoint."""
-from aligo.advanced_itinerary_skills import day_trip_discovery
+from services.advanced_itinerary_skills import day_trip_discovery
 
 
 async def run(ctx, args):

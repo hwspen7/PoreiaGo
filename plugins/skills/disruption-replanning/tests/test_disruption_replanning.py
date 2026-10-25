@@ -3,9 +3,9 @@ from pathlib import Path
 import json
 from types import SimpleNamespace
 import pytest
-from aligo.registry import SkillRegistry
-from aligo.contracts import Evidence
-from aligo.providers import ProviderResult
+from services.registry import SkillRegistry
+from core.contracts import Evidence
+from services.providers import ProviderResult
 
 ROOT = Path(__file__).resolve().parents[4]
 SKILL = "disruption-replanning"
