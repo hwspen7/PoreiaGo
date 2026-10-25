@@ -1,0 +1,132 @@
+/* Localized brand signature; color and typography inherit the active theme. */
+.identity .brand-tagline {
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  max-height: 34px;
+  margin-top: 2px;
+  text-align: left;
+  overflow: hidden;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.3;
+  text-transform: none;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.identity .brand-copy {
+  min-width: 0;
+  flex: 1;
+  gap: 0;
+  align-items: flex-start;
+  text-align: left;
+}
+.identity .brand-tagline__text {
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+.brand-tagline__text {
+  display: block;
+  animation: brand-tagline-enter 400ms ease both;
+}
+.brand-tagline--welcome {
+  display: block;
+  min-height: 24px;
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+@keyframes brand-tagline-enter {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-tagline__text {
+    animation: none;
+  }
+}
+@media (max-width: 720px) {
+  .sidebar .brand-copy {
+    display: none;
+  }
+}
+
+/* Sidebar brand: align the icon with the visible two-line text block.
+   Override the legacy .identity selectors in style.css irrespective of load order. */
+.sidebar .identity {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 54px;
+  margin-bottom: 18px;
+}
+.sidebar .identity .logo {
+  flex: 0 0 38px;
+  align-self: center;
+}
+.sidebar .identity .brand-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  width: 0;
+  height: 54px;
+  min-width: 0;
+  gap: 4px;
+  text-align: left;
+}
+.sidebar .identity .brand-wordmark {
+  display: block;
+  flex: 0 0 auto;
+  margin: 0;
+  font-family: 'Syne', 'Avenir Next', 'Segoe UI Variable Display', 'Segoe UI', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.8px;
+  text-align: left;
+}
+.sidebar .identity .brand-tagline {
+  display: block;
+  flex: 0 0 auto;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  font-family: 'DM Sans', 'Noto Sans', 'Segoe UI', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-align: left;
+}
+.sidebar .identity .brand-tagline__text {
+  display: block;
+  width: 100%;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+}
+@media (max-width: 720px) {
+  .sidebar .identity .brand-copy {
+    display: none;
+  }
+}

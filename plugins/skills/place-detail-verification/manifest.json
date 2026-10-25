@@ -1,0 +1,44 @@
+{
+  "id": "place-detail-verification",
+  "domain": "Places & Navigation",
+  "description": "Resolve candidate identity cautiously.",
+  "wave": "P1",
+  "release_state": "implemented",
+  "entrypoint": "handler.py:run",
+  "keywords": [
+    "verify venue",
+    "place details"
+  ],
+  "required_capabilities": [],
+  "mutates_state": false,
+  "depends_on": [],
+  "priority": 50,
+  "timeout_seconds": 12,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "place": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "city": {
+        "type": "string"
+      },
+      "candidates": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "place_id": {
+        "type": "string"
+      },
+      "country": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": true
+  }
+}

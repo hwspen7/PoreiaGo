@@ -1,0 +1,17 @@
+{
+  "start_date": "2026-10-20",
+  "end_date": "2026-10-24",
+  "interests": [
+    "music"
+  ],
+  "events": [
+    {
+      "name": "Canal Music Festival",
+      "event_id": "event-1",
+      "start_date": "2026-10-22",
+      "end_date": "2026-10-22",
+      "category": "music",
+      "venue": "Canal Plaza"
+    }
+  ]
+}

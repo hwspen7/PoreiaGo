@@ -1,0 +1,18 @@
+{
+  "interests": [
+    "regional"
+  ],
+  "candidates": [
+    {
+      "name": "Regional Tasting Counter",
+      "cuisine": "regional",
+      "specialties": [
+        "seasonal tasting"
+      ]
+    },
+    {
+      "name": "Neighborhood Cafe",
+      "cuisine": "cafe"
+    }
+  ]
+}

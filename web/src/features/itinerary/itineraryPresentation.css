@@ -1,0 +1,143 @@
+/* Itinerary-specific typography, independent of model prompts and persistence. */
+.formatted-answer .itinerary-day-title {
+  font:
+    750 16px/1.4 Manrope,
+    sans-serif;
+  letter-spacing: -0.25px;
+  margin: 23px 0 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.formatted-answer .itinerary-day-metadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 18px;
+  margin: 0 0 19px;
+  padding: 12px 15px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface2);
+}
+.formatted-answer .itinerary-day-metadata > div {
+  min-width: 0;
+}
+.formatted-answer .itinerary-day-metadata dt {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+  color: var(--muted);
+  margin: 0 0 3px;
+}
+.formatted-answer .itinerary-day-metadata dd {
+  margin: 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.formatted-answer .itinerary-activity {
+  position: relative;
+  margin: 0 0 13px;
+  padding: 16px 17px 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface2);
+}
+.formatted-answer .itinerary-activity-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+}
+.formatted-answer .itinerary-time {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  margin-top: 1px;
+  border-radius: 8px;
+  background: var(--accentDim);
+  color: var(--accent);
+  font:
+    750 11px/1.5 Manrope,
+    sans-serif;
+  letter-spacing: -0.1px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.formatted-answer .itinerary-time-separator {
+  opacity: 0.75;
+  padding: 0 1px;
+}
+.formatted-answer .itinerary-activity-title-area {
+  min-width: 0;
+}
+.formatted-answer .itinerary-activity-title {
+  margin: 0;
+  font:
+    700 14px/1.55 Manrope,
+    sans-serif;
+  letter-spacing: -0.16px;
+  color: var(--text);
+}
+.formatted-answer .itinerary-activity-location {
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.formatted-answer .itinerary-activity-description {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text);
+}
+.formatted-answer .itinerary-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 13px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.formatted-answer .itinerary-fact {
+  display: grid;
+  grid-template-columns: minmax(76px, 98px) minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: baseline;
+}
+.formatted-answer .itinerary-fact dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+.formatted-answer .itinerary-fact dd {
+  margin: 0;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.formatted-answer .itinerary-section-note {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.formatted-answer .itinerary-section-note strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .formatted-answer .itinerary-day-metadata {
+    grid-template-columns: 1fr;
+  }
+  .formatted-answer .itinerary-activity {
+    padding: 13px 12px;
+  }
+  .formatted-answer .itinerary-activity-header {
+    flex-direction: column;
+    gap: 7px;
+  }
+  .formatted-answer .itinerary-fact {
+    grid-template-columns: minmax(70px, 82px) minmax(0, 1fr);
+  }
+}

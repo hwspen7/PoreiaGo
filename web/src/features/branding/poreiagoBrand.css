@@ -1,0 +1,132 @@
+/* Center the complete brand lockup, not its individual text lines.
+   The reserved tagline track prevents multilingual rotations from shifting it. */
+.sidebar .identity {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 66px;
+  min-height: 66px;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+
+.sidebar .identity .poreiago-mark-wrap {
+  display: flex;
+  flex: 0 0 45px;
+  align-items: center;
+  justify-content: center;
+  width: 45px;
+  height: 45px;
+}
+
+.sidebar .identity .poreiago-symbol {
+  display: block;
+  width: 45px;
+  height: 45px;
+  object-fit: contain;
+}
+
+.sidebar .identity .poreiago-brand-copy {
+  display: grid;
+  flex: 0 1 170px;
+  grid-template-rows: 25px 35px;
+  align-content: center;
+  align-items: center;
+  justify-items: start;
+  gap: 0;
+  width: 170px;
+  min-width: 0;
+  height: 66px;
+  min-height: 66px;
+  text-align: left;
+}
+
+.sidebar .identity .poreiago-wordmark {
+  display: block;
+  grid-row: 1;
+  width: 100%;
+  height: 25px;
+  max-height: 25px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+/* Keep the subtitle in a fixed, vertically centered two-line slot. */
+.sidebar .identity .poreiago-brand-copy .brand-tagline {
+  display: flex;
+  grid-row: 2;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 35px;
+  min-height: 35px;
+  max-height: 35px;
+  margin: 0;
+  overflow: hidden;
+  font-size: 11.5px;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.sidebar .identity .poreiago-brand-copy .brand-tagline__text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  font-size: inherit;
+  line-height: inherit;
+  letter-spacing: normal;
+  overflow-wrap: anywhere;
+}
+
+.sidebar.collapsed .identity {
+  padding: 0;
+  justify-content: center;
+}
+
+.sidebar.collapsed .identity .poreiago-brand-copy {
+  display: none;
+}
+
+.welcome .poreiago-welcome-icon {
+  border: 1px solid #396d60;
+  background: var(--accentDim);
+  overflow: hidden;
+}
+
+.welcome .poreiago-welcome-icon img {
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+@media (max-width: 720px) {
+  .sidebar .identity {
+    padding: 0;
+    justify-content: center;
+  }
+  .sidebar .identity .poreiago-brand-copy {
+    display: none;
+  }
+}
+
+/* Position the complete logo lockup slightly lower in the sidebar header.
+   Relative positioning preserves the existing flow, horizontal centering,
+   and the reserved multilingual tagline height. */
+@media (min-width: 721px) {
+  .sidebar:not(.collapsed) .identity {
+    position: relative;
+    top: 9px;
+  }
+}
+
+.sidebar .identity .poreiago-mark-wrap {
+  transform: translate(0px, -7.5px);
+}
+
+.sidebar:not(.collapsed) .identity .poreiago-brand-copy {
+  transform: translate(-1.5px, -1px);
+}

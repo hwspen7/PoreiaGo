@@ -1,0 +1,14 @@
+{
+  "activities": [
+    {
+      "place": "Museum",
+      "start_time": "10:00"
+    }
+  ],
+  "disruption": {
+    "type": "closure",
+    "affected_places": [
+      "Museum"
+    ]
+  }
+}

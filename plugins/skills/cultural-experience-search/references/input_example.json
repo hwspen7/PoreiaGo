@@ -1,0 +1,12 @@
+{
+  "interest": "ceramics",
+  "exclude_names": [
+    "Sample Studio"
+  ],
+  "candidates": [
+    {
+      "name": "Other Studio",
+      "category": "ceramics"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "suite": "itinerary-focused-capability-coverage",
+  "description": "Nine traveler-facing planning Skills; tool discovery for sightseeing and itinerary quality.",
+  "cases": [
+    {
+      "id": "place-explore",
+      "request": "Find attractions and sights in Nairobi.",
+      "expected_skills": [
+        "place-discovery"
+      ]
+    },
+    {
+      "id": "rain",
+      "request": "What is the weather forecast for Melbourne?",
+      "expected_skills": [
+        "hourly-weather-forecast"
+      ]
+    },
+    {
+      "id": "budget",
+      "request": "Plan 4 days in Lisbon with a trip budget of 900 EUR.",
+      "expected_skills": [
+        "trip-budget-allocation"
+      ]
+    },
+    {
+      "id": "restaurant",
+      "request": "Find restaurants in Osaka.",
+      "expected_skills": [
+        "restaurant-discovery"
+      ]
+    },
+    {
+      "id": "cultural",
+      "request": "Find a traditional craft workshop in Kyoto.",
+      "expected_skills": [
+        "cultural-experience-search"
+      ]
+    },
+    {
+      "id": "schedule",
+      "request": "Check overlapping events and schedule conflicts.",
+      "expected_skills": [
+        "schedule-conflict-validation"
+      ]
+    },
+    {
+      "id": "route",
+      "request": "Optimize route and stop order for museum stops.",
+      "expected_skills": [
+        "multi-stop-route-optimizer"
+      ]
+    },
+    {
+      "id": "replanning",
+      "request": "Replan trip after travel delay.",
+      "expected_skills": [
+        "disruption-replanning"
+      ]
+    },
+    {
+      "id": "place-detail",
+      "request": "Verify venue and show place details.",
+      "expected_skills": [
+        "place-detail-verification"
+      ]
+    }
+  ]
+}

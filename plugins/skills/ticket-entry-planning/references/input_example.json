@@ -1,0 +1,15 @@
+{
+  "candidates": [
+    {
+      "name": "Example Museum",
+      "reservation_required": true,
+      "ticket_price": 15,
+      "currency": "USD",
+      "booking_url": "https://example.org/tickets",
+      "entry_windows": [
+        "10:00",
+        "12:00"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "id": "trip-budget-allocation",
+  "domain": "Budget & Itinerary",
+  "description": "Allocate a realistic envelope from user-specified budget.",
+  "wave": "P0",
+  "release_state": "implemented",
+  "entrypoint": "handler.py:run",
+  "keywords": [
+    "budget",
+    "cost breakdown",
+    "spending",
+    "trip budget"
+  ],
+  "required_capabilities": [],
+  "mutates_state": false,
+  "depends_on": [],
+  "priority": 50,
+  "timeout_seconds": 12,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "total": {
+        "type": "number"
+      },
+      "budget": {
+        "type": "number"
+      },
+      "days": {
+        "type": "number"
+      },
+      "currency": {
+        "type": "string"
+      },
+      "travelers": {
+        "type": "number"
+      },
+      "weights": {
+        "type": "object"
+      },
+      "day_weights": {
+        "type": "array",
+        "items": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "day_categories": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "basis": {
+        "type": "string",
+        "enum": [
+          "group_total",
+          "per_person"
+        ]
+      }
+    },
+    "additionalProperties": true
+  }
+}

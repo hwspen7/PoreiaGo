@@ -1,0 +1,9 @@
+{
+  "city": "Osaka",
+  "candidates": [
+    {
+      "name": "Local Cafe",
+      "cuisine": "Japanese"
+    }
+  ]
+}

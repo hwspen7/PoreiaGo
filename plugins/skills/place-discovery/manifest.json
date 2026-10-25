@@ -1,0 +1,57 @@
+{
+  "id": "place-discovery",
+  "domain": "Places & Navigation",
+  "description": "Rank real-world attraction candidates for travel planning.",
+  "wave": "P0",
+  "release_state": "implemented",
+  "entrypoint": "handler.py:run",
+  "keywords": [
+    "attractions",
+    "sights",
+    "places to visit",
+    "museums",
+    "landmarks",
+    "places",
+    "tourism"
+  ],
+  "required_capabilities": [],
+  "mutates_state": false,
+  "depends_on": [],
+  "priority": 40,
+  "timeout_seconds": 20,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "candidates": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "city": {
+        "type": "string"
+      },
+      "destination": {
+        "type": "string"
+      },
+      "interests": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "exclude_names": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 30
+      }
+    },
+    "additionalProperties": true
+  }
+}

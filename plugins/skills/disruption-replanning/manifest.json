@@ -1,0 +1,48 @@
+{
+  "id": "disruption-replanning",
+  "domain": "Budget & Itinerary",
+  "description": "Produce non-destructive alternatives when plans change.",
+  "wave": "P3",
+  "release_state": "implemented",
+  "entrypoint": "handler.py:run",
+  "keywords": [
+    "replan trip",
+    "trip disruption",
+    "travel delay",
+    "venue closed",
+    "reschedule activities"
+  ],
+  "required_capabilities": [],
+  "mutates_state": false,
+  "depends_on": [],
+  "priority": 50,
+  "timeout_seconds": 12,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "activities": {
+        "type": "array",
+        "maxItems": 50,
+        "items": {
+          "type": "object"
+        }
+      },
+      "disruption": {
+        "type": "object"
+      },
+      "alternative_candidates": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "visited_names": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": true
+  }
+}

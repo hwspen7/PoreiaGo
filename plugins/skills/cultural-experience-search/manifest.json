@@ -1,0 +1,62 @@
+{
+  "id": "cultural-experience-search",
+  "domain": "Travel Styles & Experiences",
+  "description": "Identify distinct candidate cultural experiences.",
+  "wave": "P2",
+  "release_state": "implemented",
+  "entrypoint": "handler.py:run",
+  "keywords": [
+    "cultural experience",
+    "craft workshop",
+    "local crafts",
+    "ceramics",
+    "traditional craft"
+  ],
+  "required_capabilities": [],
+  "mutates_state": false,
+  "depends_on": [],
+  "priority": 50,
+  "timeout_seconds": 25,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "interest": {
+        "type": "string"
+      },
+      "candidates": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "latitude": {
+        "type": "number"
+      },
+      "longitude": {
+        "type": "number"
+      },
+      "exclude_names": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "limit": {
+        "type": "number"
+      },
+      "interests": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "visited_names": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": true
+  }
+}

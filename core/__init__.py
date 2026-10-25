@@ -1,0 +1,1 @@
+"""PoreiaGo core package."""

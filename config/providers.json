@@ -1,0 +1,11 @@
+{
+  "custom_adapters": [],
+  "capabilities": {
+    "geocode": {"adapter":"openmeteo","requires_key":false},
+    "weather": {"adapter":"openmeteo","requires_key":false},
+    "places": {"adapter":"openstreetmap-overpass","requires_key":false},
+    "walking_route": {"adapter":"openrouteservice","key_env":"ORS_API_KEY"},
+    "flights": {"adapter":"duffel","key_env":"DUFFEL_ACCESS_TOKEN"},
+    "fx": {"adapter":"frankfurter-reference","requires_key":false}
+  }
+}
