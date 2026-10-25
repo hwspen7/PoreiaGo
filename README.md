@@ -115,14 +115,13 @@ PoreiaGo uses parallel execution where tasks are independent, with explicit limi
 
 These are **concurrency-control features, not published throughput benchmarks**. No requests-per-second, user-capacity, or distributed-scaling claim is implied.
 
-<details>
-<summary><strong>Explore the async execution model</strong></summary>
+### Asynchronous Execution Model
 
-<p align="center"><img src="docs/images/async-execution.png" alt="PoreiaGo asynchronous execution and skill orchestration" width="900"></p>
+<p align="center">
+  <img src="docs/images/async-execution.png" alt="PoreiaGo asynchronous execution and skill orchestration" width="900">
+</p>
 
 The graph illustrates the orchestration pattern. Actual Skill dependencies, recovery permissions, and available providers are defined by the selected Skill manifests and execution plan.
-
-</details>
 
 ## 🏗️ System architecture
 
