@@ -362,22 +362,20 @@ and revise only the activities affected by that change.
 
 ## 🚀 Quick start
 
-**Prerequisites:** Python **3.11+**, Node.js **22+**, npm, and an accessible local or cloud model endpoint. Ollama is optional when using an appropriate cloud model.
+**Requirements:** Python **3.11+**, Node.js **22+**, npm, and access to an LLM endpoint. Choose **either** a local Ollama model **or** a configured cloud model. You do not need both. The local and cloud paths below use the model profiles already defined in [`config/models.json`](config/models.json).
 
-### 1. Open the project
-
-Clone the repository after it has been published, or open your existing PoreiaGo source checkout. Run backend commands from the **project root**.
-
-### 2. Install Python dependencies
+### 1. Clone and install
 
 ```bash
+git clone https://github.com/hwspen7/PoreiaGo.git
+cd PoreiaGo
 python -m pip install -r requirements/dev.txt
 ```
 
-For a smaller runtime installation, use `requirements/base.txt`. Optional embedding/reranking dependencies live in `requirements/ml.txt`.
+Run all backend commands from the **repository root**. For a runtime-only installation, `requirements/base.txt` is sufficient. An isolated Python environment is recommended:
 
 <details>
-<summary><strong>Python environment example</strong></summary>
+<summary><strong>Python virtual environment</strong></summary>
 
 ```bash
 python -m venv .venv
@@ -399,9 +397,9 @@ Then run `python -m pip install -r requirements/dev.txt`.
 
 </details>
 
-### 3. Configure the environment
+### 2. Create your private environment file
 
-Copy the supplied template:
+Copy the checked-in template, then edit `.env` in the repository root:
 
 **Windows PowerShell**
 
@@ -409,38 +407,64 @@ Copy the supplied template:
 Copy-Item .env.example .env
 ```
 
-**macOS / Linux**
+**macOS/Linux**
 
 ```bash
 cp .env.example .env
 ```
 
-Example local configuration:
+The template is safe to commit; **your populated `.env` is not**. Never commit tokens, passwords, or provider credentials. Use the default `POREIAGO_DATABASE_PATH=data/poreiago.sqlite3` and `POREIAGO_RETRIEVAL_MODE=lexical` for a first run. The database path is relative to the repository root when running from source.
 
-```dotenv
-POREIAGO_ALLOW_ONLINE=false
-POREIAGO_DATABASE_PATH=data/poreiago.sqlite3
-POREIAGO_RETRIEVAL_MODE=lexical
-POREIAGO_LOCAL_MODEL=YOUR_INSTALLED_MODEL
+### 3. Choose an inference backend
+
+#### Option A — Local Ollama (no cloud LLM API key)
+
+Install [Ollama](https://ollama.com/download), start its local service, and download an available model. For example, the model tag `qwen3.5:9b` is published in the [Ollama model library](https://ollama.com/library/qwen3.5):
+
+```bash
+ollama pull qwen3.5:9b
+ollama list
 ```
 
-`YOUR_INSTALLED_MODEL` is a placeholder. Use a model actually installed on your chosen inference server. Keep all credentials in `.env`, never in committed source files.
+For a smaller download, `qwen3.5:4b` is also available; larger models require correspondingly more RAM/VRAM. These are **downloadable model examples, not PoreiaGo-specific quality benchmarks**. Pick a model that fits your hardware and produces reliable structured JSON. Verify that `ollama list` shows the exact tag you will configure.
 
-### 4. Start the FastAPI backend
+Add or uncomment these values in `.env`:
+
+```dotenv
+POREIAGO_LOCAL_MODEL=qwen3.5:9b
+POREIAGO_OLLAMA_API_KEY=ollama
+POREIAGO_RETRIEVAL_MODE=lexical
+POREIAGO_ALLOW_ONLINE=false
+```
+
+The `ollama` API key is a **non-secret placeholder** required by the OpenAI-compatible client; a default localhost Ollama server does not validate it. The local endpoint `http://127.0.0.1:11434/v1` is already defined in `config/models.json`. Leave `GROQ_API_KEY` and other cloud credentials blank if you want to prevent cloud-model fallback.
+
+**Important:** The local profile currently includes a `qwen3.8:27b-q4_K_M` default string. Do **not** assume it is a downloadable Ollama tag. The `POREIAGO_LOCAL_MODEL` setting above explicitly overrides it. For predictable stage routing, you can also set `POREIAGO_MODEL_PRESET=baseline-local`, which maps all six planning stages to the local profiles.
+
+#### Option B — Hosted inference with Groq (no model download)
+
+If you prefer a hosted model, leave `POREIAGO_OLLAMA_API_KEY` unset or empty and configure a valid [Groq API key](https://console.groq.com/keys) in `.env`:
+
+```dotenv
+GROQ_API_KEY=YOUR_PRIVATE_GROQ_API_KEY
+POREIAGO_GROQ_MODEL=qwen/qwen3.8-27b
+POREIAGO_RETRIEVAL_MODE=lexical
+POREIAGO_ALLOW_ONLINE=false
+```
+
+Replace `YOUR_PRIVATE_GROQ_API_KEY` with your own key. The model ID above is a **Groq-hosted model**, not an Ollama tag. Model access and quotas depend on your Groq account; confirm the current catalog in [Groq's supported models](https://console.groq.com/docs/models). PoreiaGo already has Groq profiles for routing, reasoning, and synthesis in `config/models.json`. Leave local and unrelated cloud keys empty when testing cloud-only inference.
+
+`POREIAGO_ALLOW_ONLINE=false` disables **external travel data providers**, not configured cloud LLM inference. A cloud model still needs Internet access. For other OpenAI-compatible services, configure the appropriate model profiles and role-specific credentials in `config/models.json` and `.env`; setting an arbitrary API key alone does not reconfigure the endpoints.
+
+### 4. Start the backend and frontend
+
+In the project root, start FastAPI:
 
 ```bash
 python -m uvicorn app.api:app --host 127.0.0.1 --port 8000
 ```
 
-| Interface | Local address |
-|:--|:--|
-| API | `http://127.0.0.1:8000` |
-| OpenAPI / Swagger UI | `http://127.0.0.1:8000/docs` |
-| Health endpoint | `http://127.0.0.1:8000/api/health` |
-
-### 5. Start the React frontend
-
-Open a **second terminal**:
+Then open a **second terminal**:
 
 ```bash
 cd web
@@ -448,62 +472,58 @@ npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:5173**. Vite proxies `/api` requests to the local FastAPI backend.
+| Interface | URL |
+|:--|:--|
+| Web application | http://127.0.0.1:5173 |
+| API and health | http://127.0.0.1:8000/api/health |
+| Interactive API documentation | http://127.0.0.1:8000/docs |
 
-<details>
-<summary><strong>Using Ollama locally</strong></summary>
+Vite proxies frontend `/api` calls to FastAPI. Keep both processes running.
 
-Ensure Ollama is running and that you have installed a compatible model.
+### 5. Verify model readiness
 
-```bash
-ollama list
-```
+Check the health endpoint after starting the backend. It lists model profiles and a `configured` flag for each one:
 
-A common local OpenAI-compatible endpoint is `http://127.0.0.1:11434/v1`. For a one-session override in PowerShell:
+**Windows PowerShell**
 
 ```powershell
-$env:POREIAGO_LOCAL_MODEL = "YOUR_INSTALLED_MODEL"
-python -m uvicorn app.api:app --host 127.0.0.1 --port 8000
+(Invoke-RestMethod http://127.0.0.1:8000/api/health).models |
+  Select-Object name, role, model, configured
 ```
 
-Local inference throughput and context limits are constrained by the selected model, quantization, VRAM, and available hardware.
+**macOS/Linux**
 
-</details>
+```bash
+curl http://127.0.0.1:8000/api/health
+```
 
-<details>
-<summary><strong>Optional live data providers</strong></summary>
+For the selected local or cloud backend, confirm that `router`, `reasoning`, and `synthesis` profiles report `configured: true`. This indicates credentials/configuration are present, **not** that inference succeeded. Send a simple planning request through the web application to verify actual model connectivity and structured output. If a model is unavailable, verify its exact ID, provider endpoint, API key (or local placeholder), and service status. Review backend logs for model errors without exposing secrets.
 
-Provider configuration is defined in [`config/providers.json`](config/providers.json). The codebase includes adapters and integration paths for public reference services and optional credentialed sources, including Open-Meteo, OpenStreetMap/Overpass, OpenRouteService, and Duffel.
+### 6. Optional features and runtime settings
 
-Enable online access only when appropriate, and configure provider-specific credentials in `.env`. A listed adapter does not guarantee availability, live pricing, booking capability, or provider eligibility.
+**Travel data providers:** Set `POREIAGO_ALLOW_ONLINE=true` only if you want to enable external travel provider calls, and configure any relevant credentials in `.env` (for example `ORS_API_KEY` or `DUFFEL_ACCESS_TOKEN`). Provider mappings live in [`config/providers.json`](config/providers.json). Public data sources and credentialed services have different availability and terms; the presence of an adapter does not guarantee booking or live pricing.
 
-</details>
+**Semantic retrieval:** The default `lexical` mode needs no embedding model or reranker download. For `dense` or `hybrid` retrieval, first install the optional ML requirements:
 
-<details>
-<summary><strong>Selected runtime controls</strong></summary>
+```bash
+python -m pip install -r requirements/ml.txt
+```
+
+Then change `POREIAGO_RETRIEVAL_MODE=hybrid` (or `dense`) in `.env`. The configured Hugging Face models are `intfloat/multilingual-e5-large-instruct` for embeddings and `mixedbread-ai/mxbai-rerank-base-v2` for reranking. Model weights may download on first use and require additional disk space and memory. The reranker is used for hybrid results, not required for the default lexical mode.
+
+**Bounded concurrency:** The following are optional tuning controls, **not performance guarantees**:
 
 ```dotenv
-# Maximum independent Skills in the current dependency layer
 POREIAGO_MAX_PARALLEL_SKILLS=4
-
-# Bound the number of Skills and fallback executions
 POREIAGO_MAX_SKILL_CALLS=8
 POREIAGO_MAX_RECOVERY_STEPS=2
-
-# SSE backpressure and heartbeat configuration
 POREIAGO_SSE_QUEUE_SIZE=64
 POREIAGO_SSE_HEARTBEAT_SECONDS=15
-
-# Keep local day generation sequential unless hardware supports more
 POREIAGO_DAILY_PARALLELISM=1
-
-# Overall Skill execution deadline in seconds
 POREIAGO_EXECUTION_TIMEOUT=90
 ```
 
-Limits are enforced by the runtime; raising them may increase load or tail latency without improving user-visible results.
-
-</details>
+Increasing these limits can increase memory use, provider requests, or tail latency. The application has been designed for local development and controlled single-owner use; concurrent execution does not imply production-scale multi-tenant deployment.
 
 ## 🧪 Testing & quality
 
