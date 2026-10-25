@@ -99,7 +99,7 @@ assert.match(
   main,
   /skills: 'Skill Catalog',\s*memory: 'Travel Preferences',\s*knowledge: 'Travel Library',\s*settings: 'Models & Data Services'/,
 );
-assert.doesNotMatch(main, /Knowledge Sources|Models & Data Services/);
+assert.doesNotMatch(main, /Travel assistant|Skill catalog|Knowledge Sources|AI & Data Services|\bAligo\b/);
 const libraryPage = readFileSync(join(src, 'features/library/KnowledgeWorkspace.tsx'), 'utf8');
 const servicesPage = readFileSync(join(src, 'features/providers/ModelsProvidersOverview.tsx'), 'utf8');
 assert.match(libraryPage, /<h1>Travel Library<\/h1>/);
