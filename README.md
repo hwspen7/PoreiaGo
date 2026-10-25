@@ -118,56 +118,7 @@ These are **concurrency-control features, not published throughput benchmarks**.
 <details>
 <summary><strong>Explore the async execution model</strong></summary>
 
-```mermaid
-flowchart TB
-    REQ(["Incoming Travel Request"])
-    LOCK["Session-Safe<br/>Execution"]
-    INTENT["Intent & Execution Plan"]
-    DAG["Validated Skill<br/>Dependency DAG"]
-    READY["Ready Dependency Layer"]
-    LIMIT["Bounded Concurrency<br/>asyncio.Semaphore"]
-
-    subgraph WORKERS["PARALLEL SKILL EXECUTION"]
-        direction LR
-        A["Skill A"]
-        B["Skill B"]
-        C["Skill C"]
-    end
-
-    COLLECT["Result Aggregation<br/>Evidence & Provenance"]
-    NEXT{"More Dependency<br/>Layers?"}
-    VALID["Validation & Synthesis"]
-    STATE[("Versioned State<br/>Persistence")]
-
-    subgraph STREAM["NON-BLOCKING EVENT STREAM"]
-        direction LR
-        Q["Bounded SSE Queue<br/>Backpressure"]
-        CLIENT["Frontend<br/>Progress Updates"]
-        Q --> CLIENT
-    end
-
-    REQ --> LOCK --> INTENT --> DAG
-    DAG --> READY --> LIMIT
-    LIMIT --> A & B & C
-    A & B & C --> COLLECT
-    COLLECT --> NEXT
-    NEXT -->|"Yes"| READY
-    NEXT -->|"No"| VALID --> STATE
-
-    INTENT -.-> Q
-    COLLECT -.-> Q
-    VALID -.-> Q
-
-    classDef input fill:#e8f2ff,stroke:#397cce,color:#153e70
-    classDef control fill:#e4f7f2,stroke:#159c86,color:#095c50
-    classDef parallel fill:#f0eafd,stroke:#9272d6,color:#51318f
-    classDef output fill:#f3f4f6,stroke:#9299a5,color:#374151
-
-    class REQ,LOCK,INTENT input
-    class DAG,READY,COLLECT,NEXT,VALID control
-    class LIMIT,A,B,C parallel
-    class STATE,Q,CLIENT output
-```
+<p align="center"><img src="docs/images/async-execution.png" alt="PoreiaGo asynchronous execution and skill orchestration" width="900"></p>
 
 The graph illustrates the orchestration pattern. Actual Skill dependencies, recovery permissions, and available providers are defined by the selected Skill manifests and execution plan.
 
@@ -175,60 +126,7 @@ The graph illustrates the orchestration pattern. Actual Skill dependencies, reco
 
 ## 🏗️ System architecture
 
-```mermaid
-flowchart TB
-    U(["Traveler"])
-    WEB["React · TypeScript<br/>Travel Workspace"]
-
-    subgraph APP["APPLICATION LAYER"]
-        direction LR
-        API["FastAPI<br/>HTTP + SSE"]
-        SESSION["Session Coordination<br/>Concurrency Safety"]
-    end
-
-    subgraph CORE["TRAVEL INTELLIGENCE RUNTIME"]
-        direction TB
-        AGENT["Intent Understanding<br/>Model Orchestration"]
-        PLAN["Itinerary Planning<br/>Adaptive Revision"]
-        SKILLS["Dependency-Aware<br/>Travel Skills"]
-        VALID["Schema · Schedule<br/>Quality Validation"]
-        AGENT --> PLAN
-        AGENT --> SKILLS
-        PLAN --> VALID
-        SKILLS --> VALID
-    end
-
-    subgraph INFRA["MODELS · PROVIDERS · PERSISTENCE"]
-        direction LR
-        GATEWAY["Model Gateway"]
-        PROVIDERS["Travel Data Adapters"]
-        STORE[("SQLite<br/>Versioned Trip State")]
-    end
-
-    MODEL[("Ollama / Cloud LLMs")]
-    DATA[("Optional External<br/>Travel Services")]
-
-    U <--> WEB
-    WEB <-->|"HTTP / SSE"| API
-    API --> SESSION
-    SESSION --> AGENT
-    AGENT <--> GATEWAY
-    GATEWAY <--> MODEL
-    SKILLS --> PROVIDERS
-    PROVIDERS <--> DATA
-    SESSION <--> STORE
-    VALID --> STORE
-
-    classDef ui fill:#e8f2ff,stroke:#397cce,color:#153e70,stroke-width:1.4px
-    classDef core fill:#e4f7f2,stroke:#159c86,color:#095c50,stroke-width:1.4px
-    classDef infra fill:#f0eafd,stroke:#9272d6,color:#51318f,stroke-width:1.4px
-    classDef external fill:#f3f4f6,stroke:#9299a5,color:#374151
-
-    class U,WEB,API,SESSION ui
-    class AGENT,PLAN,SKILLS,VALID core
-    class GATEWAY,PROVIDERS,STORE infra
-    class MODEL,DATA external
-```
+<p align="center"><img src="docs/images/system-architecture.png" alt="PoreiaGo system architecture" width="780"></p>
 
 | Layer | Responsibilities |
 |:--|:--|
@@ -244,37 +142,7 @@ flowchart TB
 
 ### Model-centric, structured travel generation
 
-```mermaid
-flowchart TB
-    INPUT(["Travel Request<br/>Preferences & Constraints"])
-    INTENT["Model-Driven<br/>Intent Understanding"]
-    BLUEPRINT["Trip Blueprint<br/>Days · Destinations · Structure"]
-    DAILY["Segmented Daily Generation<br/>Context-Aware Planning"]
-    RECON["Schedule & Cross-Day<br/>Reconciliation"]
-    CHECK["Constraint Validation<br/>Quality Assessment"]
-    DRAFT[("Persisted Itinerary<br/>Version")]
-
-    EDIT["User Requests<br/>Targeted Changes"]
-    IMPACT["Revision Scope<br/>& Constraint Preservation"]
-    REPAIR["Targeted Regeneration<br/>Activity / Day Repair"]
-
-    INPUT --> INTENT --> BLUEPRINT
-    BLUEPRINT --> DAILY --> RECON
-    RECON --> CHECK --> DRAFT
-    DRAFT --> EDIT
-    EDIT --> IMPACT --> REPAIR
-    REPAIR --> RECON
-
-    classDef request fill:#e8f2ff,stroke:#397cce,color:#153e70,stroke-width:1.4px
-    classDef ai fill:#e4f7f2,stroke:#159c86,color:#095c50,stroke-width:1.4px
-    classDef process fill:#f0eafd,stroke:#9272d6,color:#51318f
-    classDef state fill:#f3f4f6,stroke:#9299a5,color:#374151
-
-    class INPUT,EDIT request
-    class INTENT,BLUEPRINT,DAILY,REPAIR ai
-    class RECON,CHECK,IMPACT process
-    class DRAFT state
-```
+<p align="center"><img src="docs/images/adaptive-travel-planning.png" alt="PoreiaGo model-centric adaptive travel planning" width="780"></p>
 
 Rather than asking a model to produce an entire long trip in one unbounded response, the planner supports **blueprint-first, day-by-day generation**, structured outputs, targeted activity repair, and cross-day consistency checks. Model budgets and recovery paths are bounded to reduce runaway generation and unintended edits.
 
