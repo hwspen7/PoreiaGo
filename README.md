@@ -2,11 +2,10 @@
 
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="web/public/brand/poreiago-readme-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="web/public/brand/poreiago-readme-light.svg">
-  <img src="web/public/brand/poreiago-readme-light.svg" width="540" alt="PoreiaGo wordmark">
-</picture>
+<p align="center">
+  <img src="web/public/brand/poreiago-readme-dark.svg#gh-dark-mode-only" width="540" alt="PoreiaGo wordmark (dark mode)" />
+  <img src="web/public/brand/poreiago-readme-light.svg#gh-light-mode-only" width="540" alt="PoreiaGo wordmark (light mode)" />
+</p>
 
 ### Your journey starts here.
 
