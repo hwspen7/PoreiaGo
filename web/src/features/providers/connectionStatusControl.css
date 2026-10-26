@@ -1,0 +1,64 @@
+.connection-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  flex: 0 0 auto;
+  min-width: 112px;
+  max-width: min(48%, 245px);
+}
+.connection-control-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.connection-status.configured,
+.connection-status.connected {
+  background: var(--accentDim);
+  color: var(--accent);
+  border-color: transparent;
+}
+.connection-status.error {
+  background: rgba(221, 109, 86, 0.12);
+  border-color: rgba(221, 109, 86, 0.3);
+  color: #ed9b87;
+}
+.connection-status.not_configured {
+  color: var(--muted);
+}
+.connection-test-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 6px 8px;
+}
+.connection-test-button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.connection-detail {
+  display: block;
+  text-align: right;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.connection-spinning {
+  animation: connection-spin 1s linear infinite;
+}
+@keyframes connection-spin {
+  to { transform: rotate(360deg); }
+}
+@media (max-width: 660px) {
+  .connection-control { max-width: 56%; min-width: 0; }
+  .connection-control-actions { justify-content: flex-end; }
+}

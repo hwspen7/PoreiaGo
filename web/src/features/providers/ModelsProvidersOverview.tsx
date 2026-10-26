@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import {
   Activity,
   BrainCircuit,
-  CheckCircle2,
   CloudSun,
   KeyRound,
   RefreshCw,
@@ -12,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { Health, ModelProfile, Provider } from '../../lib/api';
 import { setAuthToken } from '../../lib/api';
+import { ConnectionStatusControl } from './ConnectionStatusControl';
 import './modelsProvidersOverview.css';
 
 type ViewFilter = 'ready' | 'all';
@@ -26,8 +26,6 @@ const capabilityCategory = (p: Provider) => {
   if (/accommodation|hotel|price|currency|fx|offer/.test(k)) return 'Prices & stays';
   return 'Places & local information';
 };
-const statusText = (p: Provider) =>
-  p.configured ? 'Configured' : p.requires_key ? 'API key required' : 'Unavailable';
 
 export function ModelsProvidersOverview({
   health,
@@ -41,6 +39,7 @@ export function ModelsProvidersOverview({
   const [query, setQuery] = useState('');
   const [token, setToken] = useState('');
   const [tokenApplied, setTokenApplied] = useState(false);
+  const [connectionRevision, setConnectionRevision] = useState(0);
   const configuredModels = (health?.models ?? []).filter((m) => m.configured);
   const configuredProviders = (health?.providers ?? []).filter((p) => p.configured);
   const models = useMemo(
@@ -78,7 +77,10 @@ export function ModelsProvidersOverview({
             <h1>Models & Data Services</h1>
             <p>See which AI models and travel data services are configured for PoreiaGo</p>
           </div>
-          <button type="button" className="infrastructure-refresh" onClick={onRefresh}>
+          <button type="button" className="infrastructure-refresh" onClick={() => {
+            setConnectionRevision((value) => value + 1);
+            onRefresh();
+          }}>
             <RefreshCw size={15} /> Refresh status
           </button>
         </div>
@@ -109,8 +111,8 @@ export function ModelsProvidersOverview({
       <div className="infrastructure-context">
         <ShieldCheck size={16} />
         <span>
-          Configured means credentials or local settings are present, not that a live connection has
-          been verified
+          Configured means the server recognizes the settings. Use Test to verify a live
+          connection. Tests are manual and may consume external API quota.
         </span>
       </div>
       <label className="infrastructure-search">
@@ -161,18 +163,12 @@ export function ModelsProvidersOverview({
                   </span>
                   <small>{titleCase(m.provider)}</small>
                 </div>
-                <span
-                  className={
-                    'infrastructure-status ' + (m.configured ? 'available' : 'unavailable')
-                  }
-                >
-                  {m.configured ? <CheckCircle2 size={13} /> : null}
-                  {m.provider === 'local-hf' && !m.configured
-                    ? 'On demand'
-                    : m.configured
-                      ? 'Configured'
-                      : 'Not configured'}
-                </span>
+                <ConnectionStatusControl
+                  kind="model"
+                  name={m.name}
+                  configured={m.configured}
+                  revision={connectionRevision}
+                />
               </div>
             ))}
             {!models.length && (
@@ -221,14 +217,13 @@ export function ModelsProvidersOverview({
                         <strong>{providerLabel(p)}</strong>
                         <span>{p.provider}</span>
                       </div>
-                      <span
-                        className={
-                          'infrastructure-status ' + (p.configured ? 'available' : 'unavailable')
-                        }
-                      >
-                        {p.configured ? <CheckCircle2 size={13} /> : null}
-                        {statusText(p)}
-                      </span>
+                      <ConnectionStatusControl
+                        kind="provider"
+                        name={p.capability}
+                        configured={p.configured}
+                        revision={connectionRevision}
+                        hint={p.requires_key ? 'An API key or online access is required.' : 'Enable online data access on the server.'}
+                      />
                     </div>
                   ))}
                 </div>

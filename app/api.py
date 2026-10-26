@@ -23,6 +23,7 @@ from storage.travel_preferences import (PROFILE_CATEGORY, TravelProfileWrite, Tr
 from intelligence.models import ModelGateway
 from intelligence.model_management import ModelControl
 from services.providers import ProviderGateway,ProviderUnavailable
+from services.connection_status import check_model, check_provider
 from services.registry import SkillRegistry
 from storage.retrieval import Retrieval
 from core.runtime import Runtime,SkillContext
@@ -38,6 +39,11 @@ class DocumentRequest(BaseModel):
 class ReindexRequest(BaseModel):
     user_id: str = Field(default='local-demo', pattern=r'^[A-Za-z0-9_-]{1,80}$')
     semantic: bool = True
+
+class ConnectionCheckRequest(BaseModel):
+    kind: str = Field(pattern=r'^(model|provider)$')
+    name: str = Field(min_length=1, max_length=120, pattern=r'^[A-Za-z0-9_.-]+$')
+    allow_remote: bool = False
 
 def create_app(*, database_path=None, skill_root=None, models_file=None,
                model_presets_file=None, model_state_file=None):
@@ -60,6 +66,8 @@ def create_app(*, database_path=None, skill_root=None, models_file=None,
     app.state.store=store;app.state.models=models;app.state.providers=providers;app.state.registry=registry;app.state.runtime=runtime;app.state.retrieval=retrieval
     app.state.model_control = control
     model_admin_lock = asyncio.Lock()
+    connection_check_lock = asyncio.Lock()
+    recent_connection_checks: dict[tuple[str, str], float] = {}
 
     def model_admin_required(request: Request):
         require_admin_token(request, 'POREIAGO_ENABLE_MODEL_ADMIN',
@@ -224,6 +232,26 @@ def create_app(*, database_path=None, skill_root=None, models_file=None,
                 raise HTTPException(403, str(exc)) from exc
             except (ValueError, TypeError) as exc:
                 raise HTTPException(422, str(exc)) from exc
+
+    @app.post('/api/connections/check')
+    async def check_connection(payload: ConnectionCheckRequest, request: Request):
+        # Probes can consume remote API quota and are intended for the local owner.
+        if request.client and request.client.host not in ('127.0.0.1', '::1', 'localhost', 'testclient'):
+            raise HTTPException(403, 'Connection checks are available from localhost only.')
+        async with connection_check_lock:
+            key = (payload.kind, payload.name)
+            now = time.monotonic()
+            if now - recent_connection_checks.get(key, -1e9) < 8:
+                raise HTTPException(429, 'Wait a few seconds before repeating this check.')
+            recent_connection_checks[key] = now
+            try:
+                if payload.kind == 'model':
+                    return await check_model(payload.name, app.state.models,
+                                             allow_remote=payload.allow_remote)
+                return await check_provider(payload.name, providers,
+                                            allow_remote=payload.allow_remote)
+            except KeyError as exc:
+                raise HTTPException(404, 'Unknown model or data service.') from exc
 
     @app.get('/api/providers')
     async def provider_profiles():return {'providers':providers.catalog()}
