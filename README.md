@@ -3,9 +3,9 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="web/public/brand/poreiago-wordmark-dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="web/public/brand/poreiago-wordmark-light.png">
-  <img src="web/public/brand/poreiago-wordmark-light.png" width="540" alt="PoreiaGo wordmark">
+  <source media="(prefers-color-scheme: dark)" srcset="web/public/brand/poreiago-readme-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="web/public/brand/poreiago-readme-light.svg">
+  <img src="web/public/brand/poreiago-readme-light.svg" width="540" alt="PoreiaGo wordmark">
 </picture>
 
 ### Your journey starts here.
