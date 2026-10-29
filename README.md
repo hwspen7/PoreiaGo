@@ -21,7 +21,7 @@ From an open-ended idea to a structured itinerary: PoreiaGo combines language-mo
   <img src="https://img.shields.io/badge/Status-Active_Development-B45309?style=flat-square" alt="Active development">
 </p>
 
-[**Explore Features**](#-experience) · [**Engineering Highlights**](#-engineering-highlights) · [**Architecture**](#-system-architecture) · [**Travel Skills**](#-18-specialized-travel-skills) · [**Quick Start**](#-quick-start) · [**Testing**](#-testing--quality)
+[**Explore Features**](#-experience) · [**Engineering Highlights**](#-engineering-highlights) · [**Architecture**](#-system-architecture) · [**Travel Skills**](#-18-specialized-travel-skills) · [**Models & Defaults**](#-development-models-and-runtime-defaults) · [**Quick Start**](#-quick-start) · [**Testing**](#-testing--quality)
 
 </div>
 
@@ -298,6 +298,33 @@ local food, and quieter neighborhoods. Keep the daily pace relaxed.
 Now move the Kyoto museum visit to Thursday, keep the dinner timing,
 and revise only the activities affected by that change.
 ```
+
+## 🧠 Development models and runtime defaults
+
+PoreiaGo is **model-configurable**. The repository does not ship model weights or require a single named LLM. The table below distinguishes model IDs in the current source configuration from installation examples and an earlier development setup.
+
+| Component | Model ID | Configuration and usage |
+|:--|:--|:--|
+| Local Ollama LLM profiles (`router`, `reasoning`, `synthesis`) | `qwen3.8:27b-q4_K_M` | Model string currently recorded in [`config/models.json`](config/models.json). **Not a verified downloadable Ollama tag**; override it with an installed model using `POREIAGO_LOCAL_MODEL`. |
+| Documented local setup | `qwen3.5:9b` | Example used in the Quick Start below and in `.env.example`. Download it separately before selecting it; this is **not** an automatically installed or mandatory model. |
+| Hosted Groq profiles | `qwen/qwen3.8-27b` | Configured in `config/models.json` and overridable through `POREIAGO_GROQ_MODEL`. Requires a Groq API key and access to that hosted model. |
+| Semantic embeddings | `intfloat/multilingual-e5-large-instruct` | Configured embedding model (`POREIAGO_EMBEDDING_MODEL`), used for opt-in `dense` or `hybrid` retrieval. |
+| Search reranking | `mixedbread-ai/mxbai-rerank-base-v2` | Configured reranker (`POREIAGO_RERANKER_MODEL`), used for opt-in `hybrid` retrieval. |
+
+**Earlier development environment:** Local development and evaluation also used `gemma4:12b-it-qat` through Ollama. This records an earlier developer setup, **not** the current repository default, a required installation, or a claim about the model used for every benchmark.
+
+**What runs by default?** `POREIAGO_RETRIEVAL_MODE=lexical` is the default, so neither Hugging Face model needs to be downloaded for basic retrieval. LLM selection depends on configured credentials, available providers, optional `POREIAGO_LOCAL_MODEL` / `POREIAGO_GROQ_MODEL` overrides, and an optional `POREIAGO_MODEL_PRESET` from [`config/model_presets.json`](config/model_presets.json). Without an enabled, reachable inference backend there is no working LLM, regardless of which model IDs are listed in the catalog.
+
+For a reproducible **local example** using the documented Ollama model, first run `ollama pull qwen3.5:9b`, then configure:
+
+```dotenv
+POREIAGO_MODEL_PRESET=baseline-local
+POREIAGO_LOCAL_MODEL=qwen3.5:9b
+POREIAGO_OLLAMA_API_KEY=ollama
+POREIAGO_RETRIEVAL_MODE=lexical
+```
+
+The `baseline-local` preset routes the six planning stages through the local Ollama profiles. To enable the optional Hugging Face retrieval models, install `requirements/ml.txt` and select `POREIAGO_RETRIEVAL_MODE=dense` or `hybrid`; cached weights may consume substantial disk space. For live configuration checks, consult the `/api/health` model listing as described below.
 
 ## 🚀 Quick start
 
